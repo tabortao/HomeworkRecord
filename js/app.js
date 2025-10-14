@@ -208,10 +208,106 @@ function setupEventListeners() {
     resetPomodoroBtn.addEventListener('click', resetPomodoroTimer);
     completeTaskBtn.addEventListener('click', completeTaskFromPomodoro);
     
-    // 点击番茄钟小球恢复全屏
+    // 番茄钟小球点击事件
     pomodoroMiniEl.addEventListener('click', () => {
         pomodoroModalEl.classList.remove('hidden');
         pomodoroMiniEl.classList.add('hidden');
+    });
+    
+    // 番茄钟小球拖动功能
+    let isDragging = false;
+    let offsetX, offsetY;
+    
+    pomodoroMiniEl.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        
+        // 计算鼠标相对于元素左上角的偏移量
+        const rect = pomodoroMiniEl.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+        
+        // 添加拖动时的样式
+        pomodoroMiniEl.style.transition = 'none'; // 禁用过渡效果
+        pomodoroMiniEl.style.cursor = 'grabbing';
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        // 阻止默认行为，避免拖动时选择文本
+        e.preventDefault();
+        
+        // 计算新的位置
+        const newX = e.clientX - offsetX;
+        const newY = e.clientY - offsetY;
+        
+        // 限制在视窗内
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        const elementWidth = pomodoroMiniEl.offsetWidth;
+        const elementHeight = pomodoroMiniEl.offsetHeight;
+        
+        const clampedX = Math.max(0, Math.min(newX, windowWidth - elementWidth));
+        const clampedY = Math.max(0, Math.min(newY, windowHeight - elementHeight));
+        
+        // 设置新位置
+        pomodoroMiniEl.style.left = `${clampedX}px`;
+        pomodoroMiniEl.style.top = `${clampedY}px`;
+        pomodoroMiniEl.style.transform = 'none'; // 移除居中的transform
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            // 恢复样式
+            pomodoroMiniEl.style.transition = 'all 0.3s';
+            pomodoroMiniEl.style.cursor = 'move';
+        }
+    });
+    
+    // 支持触摸设备
+    pomodoroMiniEl.addEventListener('touchstart', (e) => {
+        // 阻止事件冒泡
+        e.preventDefault();
+        const touch = e.touches[0];
+        isDragging = true;
+        
+        const rect = pomodoroMiniEl.getBoundingClientRect();
+        offsetX = touch.clientX - rect.left;
+        offsetY = touch.clientY - rect.top;
+        
+        pomodoroMiniEl.style.transition = 'none';
+        pomodoroMiniEl.style.cursor = 'grabbing';
+    });
+    
+    document.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        
+        e.preventDefault();
+        const touch = e.touches[0];
+        
+        const newX = touch.clientX - offsetX;
+        const newY = touch.clientY - offsetY;
+        
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        const elementWidth = pomodoroMiniEl.offsetWidth;
+        const elementHeight = pomodoroMiniEl.offsetHeight;
+        
+        const clampedX = Math.max(0, Math.min(newX, windowWidth - elementWidth));
+        const clampedY = Math.max(0, Math.min(newY, windowHeight - elementHeight));
+        
+        pomodoroMiniEl.style.left = `${clampedX}px`;
+        pomodoroMiniEl.style.top = `${clampedY}px`;
+        pomodoroMiniEl.style.transform = 'none';
+    });
+    
+    document.addEventListener('touchend', () => {
+        if (isDragging) {
+            isDragging = false;
+            pomodoroMiniEl.style.transition = 'all 0.3s';
+            pomodoroMiniEl.style.cursor = 'move';
+        }
     });
 }
 
@@ -552,7 +648,7 @@ function renderTaskList(filter = 'all') {
                                             <i class="fa fa-pencil mr-2"></i>编辑
                                         </button>
                                         <button class="w-full text-left px-4 py-2 text-sm text-amber-500 hover:bg-gray-100 transition-colors" onclick="openPomodoroModal(${task.id})">
-                                            <i class="fa fa-tomato mr-2"></i>番茄钟
+                                            <i class="fa fa-clock-o mr-2"></i>番茄钟
                                         </button>
                                         <button class="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-gray-100 transition-colors" onclick="deleteTask(${task.id})">
                                             <i class="fa fa-trash mr-2"></i>删除
