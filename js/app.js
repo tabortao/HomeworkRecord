@@ -18,8 +18,25 @@ const SUBJECT_COLORS = {
     '音乐': '#F9C80E'
 };
 
+// 番茄钟相关变量
+let pomodoroTimer = null;
+let pomodoroRemainingTime = 25 * 60; // 默认25分钟
+let currentPomodoroTaskId = null;
+let isPomodoroRunning = false;
+
 // DOM元素引用
 const taskListEl = document.getElementById('taskList');
+const pomodoroModalEl = document.getElementById('pomodoroModal');
+const pomodoroModalContentEl = document.getElementById('pomodoroModalContent');
+const closePomodoroBtn = document.getElementById('closePomodoroBtn');
+const pomodoroTaskNameEl = document.getElementById('pomodoroTaskName');
+const pomodoroTimerEl = document.getElementById('pomodoroTimer');
+const pomodoroDurationEl = document.getElementById('pomodoroDuration');
+const startPomodoroBtn = document.getElementById('startPomodoroBtn');
+const resetPomodoroBtn = document.getElementById('resetPomodoroBtn');
+const completeTaskBtn = document.getElementById('completeTaskBtn');
+const pomodoroMiniEl = document.getElementById('pomodoroMini');
+const pomodoroMiniTimerEl = document.getElementById('pomodoroMiniTimer');
 const taskModalEl = document.getElementById('taskModal');
 const taskFormEl = document.getElementById('taskForm');
 const addTaskBtn = document.getElementById('addTaskBtn');
@@ -183,6 +200,18 @@ function setupEventListeners() {
                 menu.classList.toggle('hidden');
             }
         }
+    });
+    
+    // 番茄钟相关事件监听器
+    closePomodoroBtn.addEventListener('click', closePomodoroModal);
+    startPomodoroBtn.addEventListener('click', startPomodoroTimer);
+    resetPomodoroBtn.addEventListener('click', resetPomodoroTimer);
+    completeTaskBtn.addEventListener('click', completeTaskFromPomodoro);
+    
+    // 点击番茄钟小球恢复全屏
+    pomodoroMiniEl.addEventListener('click', () => {
+        pomodoroModalEl.classList.remove('hidden');
+        pomodoroMiniEl.classList.add('hidden');
     });
 }
 
@@ -521,6 +550,9 @@ function renderTaskList(filter = 'all') {
                                     <div class="task-menu absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-lg py-1 z-10 hidden">
                                         <button class="w-full text-left px-4 py-2 text-sm text-textPrimary hover:bg-gray-100 transition-colors" onclick="openEditTaskModal(${task.id})">
                                             <i class="fa fa-pencil mr-2"></i>编辑
+                                        </button>
+                                        <button class="w-full text-left px-4 py-2 text-sm text-amber-500 hover:bg-gray-100 transition-colors" onclick="openPomodoroModal(${task.id})">
+                                            <i class="fa fa-tomato mr-2"></i>番茄钟
                                         </button>
                                         <button class="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-gray-100 transition-colors" onclick="deleteTask(${task.id})">
                                             <i class="fa fa-trash mr-2"></i>删除
@@ -1148,11 +1180,161 @@ function enhancedInitApp() {
     setupSubjectFilterListeners();
 }
 
+// 番茄钟相关函数
+
+// 打开番茄钟模态框
+function openPomodoroModal(taskId) {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    currentPomodoroTaskId = taskId;
+    pomodoroRemainingTime = task.plannedDuration * 60; // 转换为秒
+    isPomodoroRunning = false;
+    
+    // 更新番茄钟UI
+    pomodoroTaskNameEl.textContent = task.name;
+    pomodoroDurationEl.textContent = `计划时长：${task.plannedDuration}分钟`;
+    updatePomodoroTimerDisplay();
+    
+    // 重置开始按钮文本
+    startPomodoroBtn.textContent = '开始';
+    
+    // 显示番茄钟模态框
+    pomodoroModalEl.classList.remove('hidden');
+    pomodoroMiniEl.classList.add('hidden');
+    
+    // 清除之前的定时器
+    if (pomodoroTimer) {
+        clearInterval(pomodoroTimer);
+        pomodoroTimer = null;
+    }
+}
+
+// 关闭番茄钟模态框
+function closePomodoroModal() {
+    pomodoroModalEl.classList.add('hidden');
+    
+    // 停止计时器
+    if (pomodoroTimer) {
+        clearInterval(pomodoroTimer);
+        pomodoroTimer = null;
+    }
+    
+    isPomodoroRunning = false;
+}
+
+// 开始/暂停番茄钟计时器
+function startPomodoroTimer() {
+    if (isPomodoroRunning) {
+        // 暂停计时器
+        clearInterval(pomodoroTimer);
+        pomodoroTimer = null;
+        startPomodoroBtn.textContent = '继续';
+        isPomodoroRunning = false;
+    } else {
+        // 开始计时器
+        if (pomodoroRemainingTime <= 0) {
+            // 如果时间已用完，重置
+            const task = tasks.find(t => t.id === currentPomodoroTaskId);
+            if (task) {
+                pomodoroRemainingTime = task.plannedDuration * 60;
+                updatePomodoroTimerDisplay();
+            }
+        }
+        
+        pomodoroTimer = setInterval(() => {
+            pomodoroRemainingTime--;
+            updatePomodoroTimerDisplay();
+            
+            if (pomodoroRemainingTime <= 0) {
+                // 时间到，完成任务
+                clearInterval(pomodoroTimer);
+                pomodoroTimer = null;
+                isPomodoroRunning = false;
+                startPomodoroBtn.textContent = '开始';
+                
+                // 自动完成任务
+                completeTaskFromPomodoro();
+            }
+        }, 1000);
+        
+        startPomodoroBtn.textContent = '暂停';
+        isPomodoroRunning = true;
+        
+        // 缩小番茄钟为小球
+        setTimeout(() => {
+            if (isPomodoroRunning) {
+                pomodoroModalEl.classList.add('hidden');
+                pomodoroMiniEl.classList.remove('hidden');
+            }
+        }, 2000); // 2秒后缩小
+    }
+}
+
+// 重置番茄钟
+function resetPomodoroTimer() {
+    const task = tasks.find(t => t.id === currentPomodoroTaskId);
+    if (task) {
+        pomodoroRemainingTime = task.plannedDuration * 60;
+        updatePomodoroTimerDisplay();
+        
+        // 停止计时器
+        if (pomodoroTimer) {
+            clearInterval(pomodoroTimer);
+            pomodoroTimer = null;
+        }
+        
+        isPomodoroRunning = false;
+        startPomodoroBtn.textContent = '开始';
+        
+        // 恢复全屏番茄钟
+        pomodoroModalEl.classList.remove('hidden');
+        pomodoroMiniEl.classList.add('hidden');
+    }
+}
+
+// 从番茄钟完成任务
+function completeTaskFromPomodoro() {
+    if (currentPomodoroTaskId) {
+        const task = tasks.find(t => t.id === currentPomodoroTaskId);
+        if (task) {
+            // 标记任务为已完成
+            task.status = 'completed';
+            
+            // 计算实际用时（计划时长减去剩余时间）
+            const taskDuration = task.plannedDuration * 60;
+            const actualDuration = taskDuration - pomodoroRemainingTime;
+            task.actualDuration = Math.ceil(actualDuration / 60); // 转换为分钟
+            
+            // 保存数据
+            saveData();
+            
+            // 更新UI
+            renderTaskList();
+            updateStatistics();
+            
+            // 关闭番茄钟
+            closePomodoroModal();
+        }
+    }
+}
+
+// 更新番茄钟显示
+function updatePomodoroTimerDisplay() {
+    const minutes = Math.floor(pomodoroRemainingTime / 60);
+    const seconds = pomodoroRemainingTime % 60;
+    const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    pomodoroTimerEl.textContent = formattedTime;
+    pomodoroMiniTimerEl.textContent = formattedTime;
+}
+
 // 导出函数，使其在全局可用
 window.toggleTaskStatus = toggleTaskStatus;
 window.openEditTaskModal = openEditTaskModal;
 window.deleteTask = deleteTask;
 window.openAddTaskModalWithSubject = openAddTaskModalWithSubject;
+window.openPomodoroModal = openPomodoroModal;
 
 // 初始化应用
 document.addEventListener('DOMContentLoaded', enhancedInitApp);
