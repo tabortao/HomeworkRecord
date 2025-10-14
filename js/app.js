@@ -52,6 +52,15 @@ const chartTypeSelector = document.getElementById('chartTypeSelector');
 const filterAllBtn = document.getElementById('filterAllBtn');
 const filterCompletedBtn = document.getElementById('filterCompletedBtn');
 const filterPendingBtn = document.getElementById('filterPendingBtn');
+// 学科相关元素
+const subjectModalEl = document.getElementById('subjectModal');
+const subjectFormEl = document.getElementById('subjectForm');
+const addSubjectBtn = document.getElementById('addSubjectBtn');
+const cancelSubjectBtn = document.getElementById('cancelSubjectBtn');
+const subjectNameInput = document.getElementById('subjectName');
+const subjectColorInput = document.getElementById('subjectColor');
+const colorOptions = document.querySelectorAll('.color-option');
+const taskSubjectSelect = document.getElementById('taskSubject');
 
 // 页面相关元素
 const calendarPageEl = document.getElementById('calendar-page');
@@ -70,6 +79,9 @@ function initApp() {
     // 加载本地存储数据
     loadData();
     
+    // 初始化学科选择下拉框
+    updateSubjectSelect();
+    
     // 初始化显示日历页面
     switchPage('calendar');
     
@@ -79,6 +91,16 @@ function initApp() {
 
 // 加载本地存储数据
 function loadData() {
+    // 加载学科颜色数据
+    const savedSubjectColors = localStorage.getItem('subjectColors');
+    if (savedSubjectColors) {
+        // 使用保存的学科颜色数据
+        const parsedColors = JSON.parse(savedSubjectColors);
+        // 合并默认颜色和保存的颜色
+        Object.assign(SUBJECT_COLORS, parsedColors);
+    }
+    
+    // 加载任务数据
     const savedTasks = localStorage.getItem('timeManagementTasks');
     if (savedTasks) {
         tasks = JSON.parse(savedTasks);
@@ -318,6 +340,23 @@ function setupEventListeners() {
             pomodoroMiniEl.style.cursor = 'move';
         }
     });
+    
+    // 学科相关事件监听
+    addSubjectBtn.addEventListener('click', openAddSubjectModal);
+    cancelSubjectBtn.addEventListener('click', closeSubjectModal);
+    subjectFormEl.addEventListener('submit', handleSubjectFormSubmit);
+    
+    // 颜色选择
+    colorOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            // 移除所有颜色选项的选中状态
+            colorOptions.forEach(opt => opt.classList.remove('ring-4', 'ring-primary/30'));
+            // 添加当前选中颜色的选中状态
+            option.classList.add('ring-4', 'ring-primary/30');
+            // 更新隐藏输入框的值
+            subjectColorInput.value = option.dataset.color;
+        });
+    });
 }
 
 // 打开添加任务模态框
@@ -327,6 +366,72 @@ function openAddTaskModal() {
     taskFormEl.reset();
     taskModalEl.classList.remove('hidden');
     document.getElementById('taskName').focus();
+}
+
+// 打开添加学科模态框
+function openAddSubjectModal() {
+    subjectNameInput.value = '';
+    subjectColorInput.value = '#FF6B6B';
+    // 重置颜色选项状态
+    colorOptions.forEach(opt => opt.classList.remove('ring-4', 'ring-primary/30'));
+    // 默认选中第一个颜色
+    colorOptions[0]?.classList.add('ring-4', 'ring-primary/30');
+    subjectModalEl.classList.remove('hidden');
+    subjectNameInput.focus();
+}
+
+// 关闭学科模态框
+function closeSubjectModal() {
+    subjectModalEl.classList.add('hidden');
+}
+
+// 处理学科表单提交
+function handleSubjectFormSubmit(e) {
+    e.preventDefault();
+    
+    const subjectName = subjectNameInput.value.trim();
+    const subjectColor = subjectColorInput.value;
+    
+    if (!subjectName) {
+        alert('请输入学科名称');
+        return;
+    }
+    
+    if (SUBJECT_COLORS[subjectName]) {
+        alert('该学科已存在');
+        return;
+    }
+    
+    // 添加新学科
+    SUBJECT_COLORS[subjectName] = subjectColor;
+    
+    // 保存学科数据到本地存储
+    localStorage.setItem('subjectColors', JSON.stringify(SUBJECT_COLORS));
+    
+    // 更新任务表单中的学科选择下拉框
+    updateSubjectSelect();
+    
+    // 重新渲染学科页面
+    if (subjectsPageEl.classList.contains('hidden') === false) {
+        renderSubjectList();
+        renderSubjectStatsChart();
+    }
+    
+    // 关闭模态框
+    closeSubjectModal();
+}
+
+// 更新任务表单中的学科选择下拉框
+function updateSubjectSelect() {
+    taskSubjectSelect.innerHTML = '';
+    
+    // 添加所有学科选项
+    Object.keys(SUBJECT_COLORS).forEach(subject => {
+        const option = document.createElement('option');
+        option.value = subject;
+        option.textContent = subject;
+        taskSubjectSelect.appendChild(option);
+    });
 }
 
 // 打开编辑任务模态框
@@ -364,14 +469,18 @@ function switchPage(pageName) {
     profilePageEl.classList.add('hidden');
     
     // 移除所有导航按钮的活动状态
-    navCalendarBtn.classList.remove('active');
-    navSubjectsBtn.classList.remove('active');
-    navProfileBtn.classList.remove('active');
+    navCalendarBtn.classList.remove('text-primary', 'bg-primary/5');
+    navCalendarBtn.classList.add('text-textSecondary');
+    navSubjectsBtn.classList.remove('text-primary', 'bg-primary/5');
+    navSubjectsBtn.classList.add('text-textSecondary');
+    navProfileBtn.classList.remove('text-primary', 'bg-primary/5');
+    navProfileBtn.classList.add('text-textSecondary');
     
     // 显示选中的页面和激活对应的导航按钮
     if (pageName === 'calendar') {
         calendarPageEl.classList.remove('hidden');
-        navCalendarBtn.classList.add('active');
+        navCalendarBtn.classList.remove('text-textSecondary');
+        navCalendarBtn.classList.add('text-primary', 'bg-primary/5');
         
         // 重新渲染日历页面的内容
         renderCalendar();
@@ -380,14 +489,16 @@ function switchPage(pageName) {
         updateStatistics();
     } else if (pageName === 'subjects') {
         subjectsPageEl.classList.remove('hidden');
-        navSubjectsBtn.classList.add('active');
+        navSubjectsBtn.classList.remove('text-textSecondary');
+        navSubjectsBtn.classList.add('text-primary', 'bg-primary/5');
         
         // 渲染学科页面内容
         renderSubjectList();
         renderSubjectStatsChart();
     } else if (pageName === 'profile') {
         profilePageEl.classList.remove('hidden');
-        navProfileBtn.classList.add('active');
+        navProfileBtn.classList.remove('text-textSecondary');
+        navProfileBtn.classList.add('text-primary', 'bg-primary/5');
         // 这里可以添加个人资料页面的渲染逻辑
     }
 }
