@@ -371,6 +371,38 @@
                         <textarea id="taskDescription" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" rows="3" placeholder="请输入任务描述"></textarea>
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">打卡频次</label>
+                        <div class="space-y-2">
+                            <div class="flex items-center space-x-2">
+                                <input type="radio" name="taskFrequency" value="once" checked class="text-primary focus:ring-primary">
+                                <span>一次性任务</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="radio" name="taskFrequency" value="daily" class="text-primary focus:ring-primary">
+                                <span>每天</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="radio" name="taskFrequency" value="every_n_days" class="text-primary focus:ring-primary">
+                                <span>每</span>
+                                <input type="number" id="n_days_input" class="w-16 px-2 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 text-center" min="1" max="30" value="1">
+                                <span>天</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="radio" name="taskFrequency" value="weekly" class="text-primary focus:ring-primary">
+                                <span>每周</span>
+                                <div id="weekdays_checkboxes" class="ml-4 grid grid-cols-4 gap-x-4 gap-y-1 text-sm">
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="0" checked><span>日</span></label>
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="1" checked><span>一</span></label>
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="2" checked><span>二</span></label>
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="3" checked><span>三</span></label>
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="4" checked><span>四</span></label>
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="5" checked><span>五</span></label>
+                                    <label class="flex items-center space-x-1"><input type="checkbox" class="weekday-checkbox" value="6" checked><span>六</span></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-textSecondary mb-1">完成状态</label>
                         <div class="flex items-center space-x-4">
                             <label class="flex items-center space-x-2">

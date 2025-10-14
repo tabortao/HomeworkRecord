@@ -87,6 +87,9 @@ function initApp() {
     
     // 添加事件监听器
     setupEventListeners();
+    
+    // 设置打卡频次UI交互
+    setupFrequencyUIListeners();
 }
 
 // 加载本地存储数据
@@ -94,9 +97,11 @@ function loadData() {
     // 加载学科颜色数据
     const savedSubjectColors = localStorage.getItem('subjectColors');
     if (savedSubjectColors) {
-        // 使用保存的学科颜色数据
+        // 使用保存的学科颜色数据覆盖默认颜色
         const parsedColors = JSON.parse(savedSubjectColors);
-        // 合并默认颜色和保存的颜色
+        // 清空SUBJECT_COLORS对象
+        Object.keys(SUBJECT_COLORS).forEach(key => delete SUBJECT_COLORS[key]);
+        // 将所有保存的学科颜色添加到SUBJECT_COLORS对象
         Object.assign(SUBJECT_COLORS, parsedColors);
     }
     
@@ -525,9 +530,14 @@ function renderSubjectList() {
                     <div class="w-4 h-4 rounded-full mr-2" style="background-color: ${SUBJECT_COLORS[subject]}"></div>
                     <h3 class="font-semibold text-lg">${subject}</h3>
                 </div>
-                <button class="text-primary hover:text-primary-dark transition-colors" onclick="openAddTaskModalWithSubject('${subject}')">
-                    <i class="fa fa-plus-circle mr-1"></i> 添加任务
-                </button>
+                <div class="flex space-x-2">
+                    <button class="text-primary hover:text-primary-dark transition-colors" onclick="openAddTaskModalWithSubject('${subject}')">
+                        <i class="fa fa-plus-circle mr-1"></i> 添加任务
+                    </button>
+                    <button class="text-red-500 hover:text-red-600 transition-colors delete-subject-btn" data-subject="${subject}">
+                        <i class="fa fa-trash mr-1"></i> 删除
+                    </button>
+                </div>
             </div>
             <div class="grid grid-cols-3 gap-2 text-center">
                 <div class="bg-gray-50 p-3 rounded-lg">
@@ -547,6 +557,50 @@ function renderSubjectList() {
         
         subjectsListEl.appendChild(subjectCard);
     });
+    
+    // 添加删除学科按钮的事件监听
+    document.querySelectorAll('.delete-subject-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const subject = this.getAttribute('data-subject');
+            deleteSubject(subject);
+        });
+    });
+}
+
+// 删除学科
+function deleteSubject(subject) {
+    // 检查是否有默认学科，不允许删除
+    const defaultSubjects = ['语文', '数学', '英语', '科学', '美术', '音乐'];
+    if (defaultSubjects.includes(subject)) {
+        alert('默认学科不能删除！');
+        return;
+    }
+    
+    // 检查是否有任务关联到该学科
+    const subjectTasks = tasks.filter(task => task.subject === subject);
+    if (subjectTasks.length > 0) {
+        if (!confirm(`该学科有${subjectTasks.length}个任务，确定要删除吗？删除后任务将被移动到"其他"学科。`)) {
+            return;
+        }
+        
+        // 将相关任务的学科改为"其他"
+        subjectTasks.forEach(task => {
+            task.subject = '其他';
+        });
+    } else if (!confirm('确定要删除这个学科吗？')) {
+        return;
+    }
+    
+    // 删除学科颜色配置
+    delete SUBJECT_COLORS[subject];
+    
+    // 保存数据
+    saveData();
+    
+    // 更新UI
+    renderSubjectList();
+    renderSubjectStatsChart();
+    updateSubjectSelect();
 }
 
 // 渲染学科统计图表
@@ -635,31 +689,71 @@ function handleTaskFormSubmit(e) {
         return;
     }
     
+    // 获取打卡频次设置
+    const taskFrequency = document.querySelector('input[name="taskFrequency"]:checked').value;
+    const nDaysInput = parseInt(document.getElementById('n_days_input').value) || 1;
+    const selectedWeekdays = Array.from(document.querySelectorAll('.weekday-checkbox:checked')).map(cb => parseInt(cb.value));
+    
+    // 构建基本任务对象
+    const baseTask = {
+        name: taskName,
+        subject: taskSubject,
+        description: taskDescription,
+        plannedDuration: taskDuration,
+        actualDuration: 0,
+        status: taskStatus
+    };
+    
     if (currentTaskId) {
         // 编辑现有任务
         const taskIndex = tasks.findIndex(t => t.id === currentTaskId);
         if (taskIndex !== -1) {
             tasks[taskIndex] = {
                 ...tasks[taskIndex],
-                name: taskName,
-                subject: taskSubject,
-                description: taskDescription,
-                plannedDuration: taskDuration,
-                status: taskStatus
+                ...baseTask
             };
         }
     } else {
-        // 添加新任务
-        tasks.push({
-            id: Date.now(),
-            name: taskName,
-            subject: taskSubject,
-            description: taskDescription,
-            plannedDuration: taskDuration,
-            actualDuration: 0,
-            status: taskStatus,
-            date: taskDate
-        });
+        // 添加新任务，根据打卡频次生成任务
+        const today = new Date();
+        
+        // 生成未来30天的任务
+        for (let i = 0; i < 30; i++) {
+            const targetDate = new Date(today);
+            targetDate.setDate(today.getDate() + i);
+            const dateStr = targetDate.toISOString().split('T')[0];
+            const dayOfWeek = targetDate.getDay();
+            
+            // 根据不同的打卡频次决定是否添加任务
+            let shouldAddTask = false;
+            
+            switch (taskFrequency) {
+                case 'once':
+                    // 只添加当天任务
+                    shouldAddTask = i === 0;
+                    break;
+                case 'daily':
+                    // 添加每天任务
+                    shouldAddTask = true;
+                    break;
+                case 'every_n_days':
+                    // 每n天添加一次任务
+                    shouldAddTask = i % nDaysInput === 0;
+                    break;
+                case 'weekly':
+                    // 添加每周指定日期的任务
+                    shouldAddTask = selectedWeekdays.includes(dayOfWeek);
+                    break;
+            }
+            
+            if (shouldAddTask) {
+                tasks.push({
+                    id: Date.now() + i,
+                    ...baseTask,
+                    date: dateStr
+                });
+            }
+        }
     }
     
     saveData();
@@ -1137,6 +1231,47 @@ function setActiveFilterButton(button) {
     
     button.classList.remove('bg-white', 'text-textSecondary');
     button.classList.add('bg-primary', 'text-white');
+}
+
+// 设置打卡频次UI交互
+function setupFrequencyUIListeners() {
+    const frequencyRadios = document.querySelectorAll('input[name="taskFrequency"]');
+    const nDaysInput = document.getElementById('n_days_input');
+    const weekdaysCheckboxes = document.getElementById('weekdays_checkboxes');
+    
+    // 初始化UI状态
+    updateFrequencyUI();
+    
+    // 添加事件监听器
+    frequencyRadios.forEach(radio => {
+        radio.addEventListener('change', updateFrequencyUI);
+    });
+    
+    // 当任务模态框打开时，重新初始化UI状态
+    const originalOpenAddTaskModal = openAddTaskModal;
+    window.openAddTaskModal = function() {
+        originalOpenAddTaskModal();
+        updateFrequencyUI();
+    };
+    
+    // 更新打卡频次UI状态
+    function updateFrequencyUI() {
+        const selectedFrequency = document.querySelector('input[name="taskFrequency"]:checked').value;
+        
+        // 禁用所有额外输入，然后根据选择启用特定的
+        if (nDaysInput) nDaysInput.disabled = true;
+        if (weekdaysCheckboxes) weekdaysCheckboxes.style.opacity = '0.5';
+        
+        // 根据选择的频次启用对应的输入
+        switch (selectedFrequency) {
+            case 'every_n_days':
+                if (nDaysInput) nDaysInput.disabled = false;
+                break;
+            case 'weekly':
+                if (weekdaysCheckboxes) weekdaysCheckboxes.style.opacity = '1';
+                break;
+        }
+    }
 }
 
 // 格式化时长（分钟转小时:分钟）
