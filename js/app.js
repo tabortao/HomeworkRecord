@@ -208,6 +208,15 @@ function setupEventListeners() {
     resetPomodoroBtn.addEventListener('click', resetPomodoroTimer);
     completeTaskBtn.addEventListener('click', completeTaskFromPomodoro);
     
+    // 点击番茄钟弹窗外部区域自动缩小为小圆球
+    pomodoroModalEl.addEventListener('click', (e) => {
+        // 只有在点击模态框背景（而非内容区域）时才缩小
+        if (e.target === pomodoroModalEl && isPomodoroRunning) {
+            pomodoroModalEl.classList.add('hidden');
+            pomodoroMiniEl.classList.remove('hidden');
+        }
+    });
+    
     // 番茄钟小球点击事件
     pomodoroMiniEl.addEventListener('click', () => {
         pomodoroModalEl.classList.remove('hidden');
