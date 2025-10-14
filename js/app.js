@@ -1242,6 +1242,12 @@ function startPomodoroTimer() {
             }
         }
         
+        // 记录番茄钟开始时间
+        const task = tasks.find(t => t.id === currentPomodoroTaskId);
+        if (task && !task.pomodoroStartTime) {
+            task.pomodoroStartTime = Date.now();
+        }
+        
         pomodoroTimer = setInterval(() => {
             pomodoroRemainingTime--;
             updatePomodoroTimerDisplay();
@@ -1301,10 +1307,18 @@ function completeTaskFromPomodoro() {
             // 标记任务为已完成
             task.status = 'completed';
             
-            // 计算实际用时（计划时长减去剩余时间）
-            const taskDuration = task.plannedDuration * 60;
-            const actualDuration = taskDuration - pomodoroRemainingTime;
-            task.actualDuration = Math.ceil(actualDuration / 60); // 转换为分钟
+            // 计算实际用时（番茄钟实际运行的时间）
+            // 记录番茄钟开始时间（如果还没有记录）
+            if (!task.pomodoroStartTime) {
+                task.pomodoroStartTime = Date.now();
+            }
+            
+            // 计算实际用时（从开始到现在的时间）
+            const elapsedSeconds = Math.floor((Date.now() - task.pomodoroStartTime) / 1000);
+            task.actualDuration = Math.max(1, Math.ceil(elapsedSeconds / 60)); // 转换为分钟，至少记录1分钟
+            
+            // 清除开始时间标记
+            delete task.pomodoroStartTime;
             
             // 保存数据
             saveData();
