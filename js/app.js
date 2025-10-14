@@ -5,6 +5,8 @@ let tasks = [];
 let currentDate = new Date();
 let currentTaskId = null;
 let currentChart = null;
+let selectedDate = new Date().toISOString().split('T')[0]; // 当前选中的日期
+let selectedSubject = '全部学科'; // 当前选中的学科
 
 // 颜色主题配置
 const SUBJECT_COLORS = {
@@ -447,13 +449,19 @@ function toggleTaskStatus(taskId) {
 
 // 渲染任务列表
 function renderTaskList(filter = 'all') {
-    const today = new Date().toISOString().split('T')[0];
-    let filteredTasks = tasks.filter(task => task.date === today);
+    // 使用选中的日期，而不是默认的今天
+    let filteredTasks = tasks.filter(task => task.date === selectedDate);
     
+    // 根据筛选条件过滤任务
     if (filter === 'completed') {
         filteredTasks = filteredTasks.filter(task => task.status === 'completed');
     } else if (filter === 'pending') {
         filteredTasks = filteredTasks.filter(task => task.status === 'pending');
+    }
+    
+    // 根据选中的学科过滤任务
+    if (selectedSubject !== '全部学科') {
+        filteredTasks = filteredTasks.filter(task => task.subject === selectedSubject);
     }
     
     // 按学科分组
@@ -541,6 +549,13 @@ function renderCalendar() {
     const firstDayOfWeek = new Date(currentDate);
     firstDayOfWeek.setDate(date - (currentDay - 1));
     
+    // 确保firstDayOfWeek是周一
+    if (firstDayOfWeek.getDay() !== 1) {
+        // 如果不是周一，重新计算
+        const diff = (firstDayOfWeek.getDay() === 0) ? 6 : firstDayOfWeek.getDay() - 1;
+        firstDayOfWeek.setDate(firstDayOfWeek.getDate() - diff);
+    }
+    
     // 获取当前周的周数
     const weekNumber = getWeekNumber(firstDayOfWeek);
     currentWeekEl.textContent = `${year}年${month + 1}月第${weekNumber}周`;
@@ -567,8 +582,17 @@ function renderCalendar() {
         const dayEl = document.createElement('div');
         dayEl.className = `
             flex flex-col items-center justify-center h-16 rounded-xl transition-colors relative cursor-pointer
-            ${isToday ? 'bg-primary text-white' : isCurrentMonth ? 'hover:bg-gray-100' : 'text-gray-400'}
-        `;
+            ${isToday ? 'bg-primary text-white' : 
+              (dayStr === selectedDate ? 'bg-primary/10' : 
+               isCurrentMonth ? 'hover:bg-gray-100' : 'text-gray-400')}
+        `;        
+        
+        // 添加点击事件，切换到该日期的任务列表
+        dayEl.addEventListener('click', () => {
+            selectedDate = dayStr;
+            renderTaskList();
+            updateStatisticsForSelectedDate();
+        });
         
         dayEl.innerHTML = `
             <span class="font-medium">${dayDate}</span>
@@ -627,7 +651,9 @@ function renderStatsChart() {
         const day = new Date(firstDayOfWeek);
         day.setDate(firstDayOfWeek.getDate() + i);
         weekDays.push(day.toISOString().split('T')[0]);
-        weekLabels.push(['日', '一', '二', '三', '四', '五', '六'][day.getDay()]);
+        // 确保标签从周一到周日显示
+        const weekDayLabels = ['一', '二', '三', '四', '五', '六', '日'];
+        weekLabels.push(weekDayLabels[i]);
     }
     
     if (chartType === 'time') {
@@ -773,7 +799,7 @@ function renderStatsChart() {
     }
 }
 
-// 更新统计数据
+// 更新统计数据（根据当前选中的日期）
 function updateStatistics() {
     const today = new Date().toISOString().split('T')[0];
     const todayTasks = tasks.filter(task => task.date === today);
@@ -800,6 +826,58 @@ function updateStatistics() {
     document.getElementById('exerciseTime').textContent = formatDuration(exerciseTime);
     document.getElementById('taskCount').textContent = todayTasks.length;
     document.getElementById('completionRate').textContent = `${completionRate}%`;
+}
+
+// 更新选中日期的统计数据
+function updateStatisticsForSelectedDate() {
+    const selectedDateTasks = tasks.filter(task => task.date === selectedDate);
+    const completedTasks = selectedDateTasks.filter(task => task.status === 'completed');
+    
+    // 计算学习时间和运动时间
+    let studyTime = 0;
+    let exerciseTime = 0;
+    
+    completedTasks.forEach(task => {
+        const duration = task.actualDuration || task.plannedDuration;
+        if (['语文', '数学', '英语', '科学'].includes(task.subject)) {
+            studyTime += duration;
+        } else {
+            exerciseTime += duration;
+        }
+    });
+    
+    // 计算完成率
+    const completionRate = selectedDateTasks.length > 0 ? Math.round((completedTasks.length / selectedDateTasks.length) * 100) : 0;
+    
+    // 更新UI
+    document.getElementById('studyTime').textContent = formatDuration(studyTime);
+    document.getElementById('exerciseTime').textContent = formatDuration(exerciseTime);
+    document.getElementById('taskCount').textContent = selectedDateTasks.length;
+    document.getElementById('completionRate').textContent = `${completionRate}%`;
+}
+
+// 设置活动的学科筛选按钮样式
+function setActiveSubjectButton(button) {
+    const subjectButtons = document.querySelectorAll('.flex.overflow-x-auto button');
+    subjectButtons.forEach(btn => {
+        btn.classList.remove('bg-primary', 'text-white');
+        btn.classList.add('bg-white', 'text-textPrimary');
+    });
+    
+    button.classList.remove('bg-white', 'text-textPrimary');
+    button.classList.add('bg-primary', 'text-white');
+}
+
+// 添加学科筛选事件监听器
+function setupSubjectFilterListeners() {
+    const subjectButtons = document.querySelectorAll('.flex.overflow-x-auto button');
+    subjectButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            selectedSubject = button.textContent;
+            setActiveSubjectButton(button);
+            renderTaskList();
+        });
+    });
 }
 
 // 设置活动的筛选按钮样式
@@ -1067,6 +1145,7 @@ function enhancedInitApp() {
     
     // 添加事件监听器
     setupEventListeners();
+    setupSubjectFilterListeners();
 }
 
 // 导出函数，使其在全局可用
