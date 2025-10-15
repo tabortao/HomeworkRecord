@@ -342,23 +342,34 @@
     <!-- 底部导航栏 -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
         <div class="grid grid-cols-4 h-16">
-            <a href="#calendar" class="flex flex-col items-center justify-center text-primary bg-primary/5 page-link" data-page="calendar">
+            <a href="#calendar" class="flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors page-link active" data-page="calendar">
                 <i class="fa fa-calendar-check-o text-lg"></i>
-                <span class="text-xs mt-1 font-medium">计划打卡</span>
+                <span class="text-xs mt-1">计划打卡</span>
             </a>            
-            <a href="#wishes" class="flex flex-col items-center justify-center text-textSecondary hover:bg-gray-50 transition-colors page-link" data-page="wishes">
+            <a href="#wishes" class="flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors page-link" data-page="wishes">
                 <i class="fa fa-star-o text-lg"></i>
                 <span class="text-xs mt-1">小心愿</span>
             </a>
-            <a href="#subjects" class="flex flex-col items-center justify-center text-textSecondary hover:bg-gray-50 transition-colors page-link" data-page="subjects">
+            <a href="#subjects" class="flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors page-link" data-page="subjects">
                 <i class="fa fa-book text-lg"></i>
                 <span class="text-xs mt-1">学科</span>
             </a>
-            <a href="#profile" class="flex flex-col items-center justify-center text-textSecondary hover:bg-gray-50 transition-colors page-link" data-page="profile">
+            <a href="#profile" class="flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors page-link" data-page="profile">
                 <i class="fa fa-user-circle-o text-lg"></i>
                 <span class="text-xs mt-1">我的</span>
             </a>
         </div>
+        <style>
+            .page-link.active i,
+            .page-link.active span {
+                color: #4CAF50;
+                font-weight: 500;
+            }
+            .page-link:not(.active) i,
+            .page-link:not(.active) span {
+                color: #9CA3AF;
+            }
+        </style>
     </nav>
 
     <!-- 浮动添加按钮 -->
