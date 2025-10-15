@@ -2394,6 +2394,10 @@ function toggleTaskStatus(taskId) {
             updateCoinsDisplay();
         } else {
             // 如果是从已完成变为未完成，需要密码验证
+            // 立即重新渲染任务列表，将复选框恢复为选中状态
+            // 这样在密码验证过程中，复选框状态会保持为已完成
+            renderTaskList();
+            
             withPasswordVerification('将任务标记为未完成需要验证密码', () => {
                 task.status = 'pending';
                 
