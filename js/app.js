@@ -1915,7 +1915,8 @@ function handleTaskFormSubmit(e) {
             if (coinsDifference !== 0) {
                 const currentCoins = getUserCoins();
                 const updatedCoins = currentCoins + coinsDifference;
-                manageUserCoins(updatedCoins);
+                // 由于用户已经在打开编辑任务模态框时验证了密码，这里直接保存金币
+                saveUserCoins(updatedCoins);
                 updateCoinsDisplay();
                 
                 // 显示金币变化通知
@@ -1932,14 +1933,13 @@ function handleTaskFormSubmit(e) {
                 
                 if (originalStatus === 'completed' && newStatus === 'pending') {
                     // 从已完成变为待完成，扣除金币
-                    withPasswordVerification('将任务从已完成状态修改为待完成需要验证密码', () => {
-                        const currentCoins = getUserCoins();
-                        const updatedCoins = Math.max(0, currentCoins - taskCoins);
-                        saveUserCoins(updatedCoins);
-                        updateCoinsDisplay();
-                        
-                        showNotification(`扣除 ${taskCoins} 个金币！`, 'error');
-                    });
+                    // 由于用户已经在打开编辑任务模态框时验证了密码，这里不再需要额外验证
+                    const currentCoins = getUserCoins();
+                    const updatedCoins = Math.max(0, currentCoins - taskCoins);
+                    saveUserCoins(updatedCoins);
+                    updateCoinsDisplay();
+                    
+                    showNotification(`扣除 ${taskCoins} 个金币！`, 'error');
                 } else if (originalStatus === 'pending' && newStatus === 'completed') {
                     // 从待完成变为已完成，增加金币
                     const currentCoins = getUserCoins();
