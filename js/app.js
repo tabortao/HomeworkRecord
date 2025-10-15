@@ -2620,17 +2620,12 @@ function updateStatistics() {
     const todayTasks = tasks.filter(task => task.date === today);
     const completedTasks = todayTasks.filter(task => task.status === 'completed');
     
-    // 计算学习时间和运动时间
+    // 计算学习时间（包含所有学科）
     let studyTime = 0;
-    let exerciseTime = 0;
     
     completedTasks.forEach(task => {
         const duration = task.actualDuration || task.plannedDuration;
-        if (['语文', '数学', '英语', '科学'].includes(task.subject)) {
-            studyTime += duration;
-        } else {
-            exerciseTime += duration;
-        }
+        studyTime += duration; // 所有学科的任务时长都计入学习时间
     });
     
     // 计算完成率
@@ -2638,7 +2633,6 @@ function updateStatistics() {
     
     // 更新UI
     document.getElementById('studyTime').textContent = formatDuration(studyTime);
-    document.getElementById('exerciseTime').textContent = formatDuration(exerciseTime);
     document.getElementById('taskCount').textContent = todayTasks.length;
     document.getElementById('completionRate').textContent = `${completionRate}%`;
 }
@@ -2648,17 +2642,12 @@ function updateStatisticsForSelectedDate() {
     const selectedDateTasks = tasks.filter(task => task.date === selectedDate);
     const completedTasks = selectedDateTasks.filter(task => task.status === 'completed');
     
-    // 计算学习时间和运动时间
+    // 计算学习时间（包含所有学科）
     let studyTime = 0;
-    let exerciseTime = 0;
     
     completedTasks.forEach(task => {
         const duration = task.actualDuration || task.plannedDuration;
-        if (['语文', '数学', '英语', '科学'].includes(task.subject)) {
-            studyTime += duration;
-        } else {
-            exerciseTime += duration;
-        }
+        studyTime += duration; // 所有学科的任务时长都计入学习时间
     });
     
     // 计算完成率
@@ -2666,7 +2655,6 @@ function updateStatisticsForSelectedDate() {
     
     // 更新UI
     document.getElementById('studyTime').textContent = formatDuration(studyTime);
-    document.getElementById('exerciseTime').textContent = formatDuration(exerciseTime);
     document.getElementById('taskCount').textContent = selectedDateTasks.length;
     document.getElementById('completionRate').textContent = `${completionRate}%`;
 }
