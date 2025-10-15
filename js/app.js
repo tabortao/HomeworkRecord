@@ -2,8 +2,10 @@
 
 // 数据模型
 let tasks = [];
+let wishes = [];
 let currentDate = new Date();
 let currentTaskId = null;
+let currentWishId = null;
 let currentChart = null;
 let selectedDate = new Date().toISOString().split('T')[0]; // 当前选中的日期
 let selectedSubject = '全部学科'; // 当前选中的学科
@@ -78,9 +80,26 @@ const taskSubjectSelect = document.getElementById('taskSubject');
 const calendarPageEl = document.getElementById('calendar-page');
 const subjectsPageEl = document.getElementById('subjects-page');
 const profilePageEl = document.getElementById('profile-page');
+const wishesPageEl = document.getElementById('wishes-page');
 const navCalendarBtn = document.querySelector('[data-page="calendar"]');
 const navSubjectsBtn = document.querySelector('[data-page="subjects"]');
 const navProfileBtn = document.querySelector('[data-page="profile"]');
+const navWishesBtn = document.querySelector('[data-page="wishes"]');
+
+// 小心愿相关元素
+const wishesListEl = document.getElementById('wishes-list');
+const wishesCoinsDisplayEl = document.getElementById('wishes-coins-display');
+const wishModalEl = document.getElementById('wishModal');
+const wishFormEl = document.getElementById('wishForm');
+const addWishBtn = document.getElementById('addWishBtn');
+const closeWishModalBtn = document.getElementById('closeWishModalBtn');
+const cancelWishBtn = document.getElementById('cancelWishBtn');
+const wishModalTitleEl = document.getElementById('wishModalTitle');
+const wishIconPreviewEl = document.getElementById('wishIconPreview');
+const wishIconUploadEl = document.getElementById('wishIconUpload');
+const wishNameEl = document.getElementById('wishName');
+const wishContentEl = document.getElementById('wishContent');
+const wishCostEl = document.getElementById('wishCost');
 const subjectsListEl = document.getElementById('subjectList');
 const subjectChartContainer = document.getElementById('subjectStatsChart');
 const subjectChartEl = document.getElementById('subjectStatsChart');
@@ -204,12 +223,48 @@ function loadData() {
         }
         saveData();
     }
+    
+    // 加载小心愿数据（按用户分组）
+    const savedWishes = localStorage.getItem(`timeManagementWishes_${currentUserId}`);
+    if (savedWishes) {
+        wishes = JSON.parse(savedWishes);
+    } else {
+        // 创建默认的小心愿示例数据
+        wishes = [
+            {
+                id: Date.now() + 1,
+                name: '看电视',
+                content: '完成学习任务后可以看喜欢的动画片',
+                icon: '',
+                iconType: 'emoji',
+                iconEmoji: '📺',
+                cost: 10,
+                status: 'available'
+            },
+            {
+                id: Date.now() + 2,
+                name: '玩游戏',
+                content: '周末可以玩30分钟电脑游戏',
+                icon: '',
+                iconType: 'emoji',
+                iconEmoji: '🎮',
+                cost: 15,
+                status: 'available'
+            }
+        ];
+        saveWishes();
+    }
 }
 
 // 保存数据到本地存储
 function saveData() {
     localStorage.setItem(`timeManagementTasks_${currentUserId}`, JSON.stringify(tasks));
     localStorage.setItem(`subjectColors_${currentUserId}`, JSON.stringify(SUBJECT_COLORS));
+}
+
+// 保存小心愿数据到本地存储
+function saveWishes() {
+    localStorage.setItem(`timeManagementWishes_${currentUserId}`, JSON.stringify(wishes));
 }
 
 // 更新当前用户信息显示
@@ -569,6 +624,10 @@ function loadUserData() {
     // 加载任务
     const savedTasks = localStorage.getItem(`timeManagementTasks_${currentUserId}`);
     tasks = savedTasks ? JSON.parse(savedTasks) : [];
+    
+    // 加载小心愿
+    const savedWishes = localStorage.getItem(`timeManagementWishes_${currentUserId}`);
+    wishes = savedWishes ? JSON.parse(savedWishes) : [];
 }
 
 // 重置学科颜色为默认值
@@ -657,6 +716,18 @@ function setupEventListeners() {
     navCalendarBtn.addEventListener('click', () => switchPage('calendar'));
     navSubjectsBtn.addEventListener('click', () => switchPage('subjects'));
     navProfileBtn.addEventListener('click', () => switchPage('profile'));
+    
+    // 小心愿页面导航
+    if (navWishesBtn) {
+        navWishesBtn.addEventListener('click', () => switchPage('wishes'));
+    }
+    
+    // 小心愿相关事件监听器
+    if (addWishBtn) addWishBtn.addEventListener('click', openAddWishModal);
+    if (closeWishModalBtn) closeWishModalBtn.addEventListener('click', closeWishModal);
+    if (cancelWishBtn) cancelWishBtn.addEventListener('click', closeWishModal);
+    if (wishFormEl) wishFormEl.addEventListener('submit', handleWishFormSubmit);
+    if (wishIconUploadEl) wishIconUploadEl.addEventListener('change', handleWishIconUpload);
     
     // 任务菜单点击事件
     document.addEventListener('click', (e) => {
@@ -1528,6 +1599,286 @@ function updateCoinsDisplay() {
     }
 }
 
+// 更新小心愿页面的金币显示
+function updateWishesCoinsDisplay() {
+    if (wishesCoinsDisplayEl) {
+        wishesCoinsDisplayEl.textContent = getUserCoins();
+    }
+}
+
+// 打开添加小心愿模态框
+function openAddWishModal() {
+    currentWishId = null;
+    wishModalTitleEl.textContent = '添加小心愿';
+    wishFormEl.reset();
+    // 重置图标预览
+    wishIconPreviewEl.innerHTML = '<i class="fa fa-gift text-blue-500"></i>';
+    
+    wishModalEl.classList.remove('hidden');
+    wishNameEl.focus();
+}
+
+// 打开编辑小心愿模态框
+function openEditWishModal(wishId) {
+    const wish = wishes.find(w => w.id === wishId);
+    if (!wish) return;
+    
+    currentWishId = wishId;
+    wishModalTitleEl.textContent = '编辑小心愿';
+    
+    // 填充表单数据
+    wishNameEl.value = wish.name;
+    wishContentEl.value = wish.content;
+    wishCostEl.value = wish.cost;
+    
+    // 更新图标预览
+    if (wish.iconType === 'image' && wish.icon) {
+        wishIconPreviewEl.innerHTML = `<img src="${wish.icon}" alt="${wish.name}" class="w-full h-full object-cover rounded-xl">`;
+    } else if (wish.iconType === 'emoji' && wish.iconEmoji) {
+        wishIconPreviewEl.textContent = wish.iconEmoji;
+    } else {
+        wishIconPreviewEl.innerHTML = '<i class="fa fa-gift text-blue-500"></i>';
+    }
+    
+    wishModalEl.classList.remove('hidden');
+}
+
+// 关闭小心愿模态框
+function closeWishModal() {
+    wishModalEl.classList.add('hidden');
+    currentWishId = null;
+    wishIconUploadEl.value = '';
+}
+
+// 处理小心愿图标上传
+function handleWishIconUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // 检查文件类型
+    if (!file.type.match('image.*')) {
+        showNotification('请选择有效的图片文件', 'warning');
+        return;
+    }
+    
+    // 使用FileReader读取图片
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        // 更新预览
+        wishIconPreviewEl.innerHTML = `<img src="${e.target.result}" alt="预览" class="w-full h-full object-cover rounded-xl">`;
+    };
+    reader.readAsDataURL(file);
+}
+
+// 处理小心愿表单提交
+function handleWishFormSubmit(e) {
+    e.preventDefault();
+    
+    const name = wishNameEl.value.trim();
+    const content = wishContentEl.value.trim();
+    const cost = parseInt(wishCostEl.value) || 0;
+    
+    if (!name) {
+        showNotification('请输入愿望名称', 'warning');
+        return;
+    }
+    
+    if (cost <= 0) {
+        showNotification('请输入有效的所需金币数', 'warning');
+        return;
+    }
+    
+    // 创建小心愿对象
+    const wishData = {
+        name,
+        content,
+        cost,
+        status: 'available'
+    };
+    
+    // 检查是否有上传的图片
+    if (wishIconUploadEl.files.length > 0) {
+        const file = wishIconUploadEl.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            wishData.icon = e.target.result;
+            wishData.iconType = 'image';
+            saveWish(wishData);
+        };
+        reader.readAsDataURL(file);
+    } else {
+        // 如果没有上传图片，检查是否是已有的emoji图标
+        const currentWish = wishes.find(w => w.id === currentWishId);
+        if (currentWish && currentWish.iconType === 'emoji') {
+            wishData.iconType = 'emoji';
+            wishData.iconEmoji = currentWish.iconEmoji;
+        } else {
+            // 默认使用emoji
+            wishData.iconType = 'emoji';
+            wishData.iconEmoji = '🎁';
+        }
+        saveWish(wishData);
+    }
+}
+
+// 保存小心愿
+function saveWish(wishData) {
+    if (currentWishId) {
+        // 编辑现有小心愿
+        const wishIndex = wishes.findIndex(w => w.id === currentWishId);
+        if (wishIndex !== -1) {
+            wishes[wishIndex] = { ...wishes[wishIndex], ...wishData };
+        }
+    } else {
+        // 添加新小心愿
+        wishes.push({
+            id: Date.now(),
+            ...wishData
+        });
+    }
+    
+    // 保存到本地存储
+    saveWishes();
+    
+    // 关闭模态框
+    closeWishModal();
+    
+    // 重新渲染列表
+    renderWishesList();
+    
+    showNotification(currentWishId ? '小心愿更新成功！' : '小心愿添加成功！', 'success');
+}
+
+// 删除小心愿
+function deleteWish(wishId) {
+    showConfirmDialog('确定要删除这个小心愿吗？').then(confirmed => {
+        if (confirmed) {
+            wishes = wishes.filter(w => w.id !== wishId);
+            saveWishes();
+            renderWishesList();
+            showNotification('小心愿已删除', 'success');
+        }
+    });
+}
+
+// 兑换小心愿
+function redeemWish(wishId) {
+    const wish = wishes.find(w => w.id === wishId);
+    if (!wish) return;
+    
+    const currentCoins = getUserCoins();
+    if (currentCoins < wish.cost) {
+        showNotification('金币不足，无法兑换', 'error');
+        return;
+    }
+    
+    showConfirmDialog(`确定要花费 ${wish.cost} 金币兑换「${wish.name}」吗？`).then(confirmed => {
+        if (confirmed) {
+            // 扣除金币
+            saveUserCoins(currentCoins - wish.cost);
+            
+            // 更新小心愿状态
+            wish.status = 'redeemed';
+            saveWishes();
+            
+            // 更新显示
+            renderWishesList();
+            updateWishesCoinsDisplay();
+            updateCoinsDisplay();
+            
+            showNotification(`成功兑换「${wish.name}」！`, 'success');
+        }
+    });
+}
+
+// 渲染小心愿列表
+function renderWishesList() {
+    if (!wishesListEl) return;
+    
+    wishesListEl.innerHTML = '';
+    
+    if (wishes.length === 0) {
+        wishesListEl.innerHTML = `
+            <div class="col-span-2 text-center py-10 text-textSecondary">
+                <i class="fa fa-star-o text-4xl mb-2"></i>
+                <p>还没有小心愿，快来添加吧！</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // 按状态排序：可用的在前，已兑换的在后
+    const sortedWishes = [...wishes].sort((a, b) => {
+        if (a.status === 'available' && b.status !== 'available') return -1;
+        if (a.status !== 'available' && b.status === 'available') return 1;
+        return 0;
+    });
+    
+    sortedWishes.forEach(wish => {
+        const wishCard = document.createElement('div');
+        wishCard.className = `bg-white rounded-xl shadow-card p-3 card-hover relative overflow-hidden`;
+        
+        // 生成图标HTML
+        let iconHtml = '';
+        if (wish.iconType === 'image' && wish.icon) {
+            iconHtml = `<img src="${wish.icon}" alt="${wish.name}" class="w-12 h-12 object-cover rounded-lg mb-2">`;
+        } else if (wish.iconType === 'emoji' && wish.iconEmoji) {
+            iconHtml = `<div class="text-3xl mb-2">${wish.iconEmoji}</div>`;
+        } else {
+            iconHtml = `<div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-xl mb-2">
+                            <i class="fa fa-gift text-blue-500"></i>
+                        </div>`;
+        }
+        
+        // 生成操作按钮
+        let actionHtml = '';
+        const currentCoins = getUserCoins();
+        const canRedeem = wish.status === 'available' && currentCoins >= wish.cost;
+        
+        if (wish.status === 'available') {
+            actionHtml = `
+                <div class="flex items-center justify-between mt-2">
+                    <span class="text-xs text-amber-500 font-medium">
+                        <i class="fa fa-coins mr-1"></i>${wish.cost}
+                    </span>
+                    <button onclick="redeemWish(${wish.id})" 
+                        class="text-xs px-2 py-1 rounded-full transition-colors ${canRedeem ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-gray-100 text-gray-400'}">
+                        ${canRedeem ? '可兑换' : '金币不足'}
+                    </button>
+                </div>
+            `;
+        } else {
+            actionHtml = `
+                <div class="flex items-center justify-between mt-2">
+                    <span class="text-xs text-gray-400 font-medium">已兑换</span>
+                    <span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-400">
+                        <i class="fa fa-check mr-1"></i>已完成
+                    </span>
+                </div>
+            `;
+        }
+        
+        wishCard.innerHTML = `
+            ${iconHtml}
+            <h3 class="font-medium text-sm mb-1 line-clamp-1">${wish.name}</h3>
+            <p class="text-xs text-textSecondary mb-2 line-clamp-2">${wish.content}</p>
+            ${actionHtml}
+            
+            <!-- 编辑和删除按钮 -->
+            <div class="absolute top-1 right-1 flex space-x-1 opacity-0 hover:opacity-100 transition-opacity">
+                <button onclick="openEditWishModal(${wish.id})" class="w-6 h-6 bg-white/80 rounded-full flex items-center justify-center text-textSecondary hover:text-primary">
+                    <i class="fa fa-pencil text-xs"></i>
+                </button>
+                <button onclick="deleteWish(${wish.id})" class="w-6 h-6 bg-white/80 rounded-full flex items-center justify-center text-textSecondary hover:text-red-500">
+                    <i class="fa fa-trash text-xs"></i>
+                </button>
+            </div>
+        `;
+        
+        wishesListEl.appendChild(wishCard);
+    });
+}
+
 // 切换任务完成状态
 function toggleTaskStatus(taskId) {
     const task = tasks.find(t => t.id === taskId);
@@ -2239,17 +2590,19 @@ function setupHonorSystemListeners() {
     document.getElementById('nextHonorMonthBtn').addEventListener('click', () => changeHonorMonth('next'));
 }
 
-// 修改switchPage函数，添加个人中心页面的渲染逻辑
+// 修改switchPage函数，添加小心愿页面的渲染逻辑
 function enhancedSwitchPage(pageName) {
     // 隐藏所有页面
     calendarPageEl.classList.add('hidden');
     subjectsPageEl.classList.add('hidden');
     profilePageEl.classList.add('hidden');
+    if (wishesPageEl) wishesPageEl.classList.add('hidden');
     
     // 移除所有导航按钮的活动状态
     navCalendarBtn.classList.remove('active');
     navSubjectsBtn.classList.remove('active');
     navProfileBtn.classList.remove('active');
+    if (navWishesBtn) navWishesBtn.classList.remove('active');
     
     // 显示选中的页面和激活对应的导航按钮
     if (pageName === 'calendar') {
@@ -2275,11 +2628,23 @@ function enhancedSwitchPage(pageName) {
         // 渲染用户列表和荣誉墙
         renderUsersList();
         renderHonorWall();
+    } else if (pageName === 'wishes' && wishesPageEl && navWishesBtn) {
+        wishesPageEl.classList.remove('hidden');
+        navWishesBtn.classList.add('active');
+        
+        // 渲染小心愿页面内容
+        renderWishesList();
+        updateWishesCoinsDisplay();
     }
 }
 
 // 重命名原始函数并替换为增强版
 window.switchPage = enhancedSwitchPage;
+
+// 暴露小心愿相关函数到window对象，以便在HTML中直接调用
+window.openEditWishModal = openEditWishModal;
+window.deleteWish = deleteWish;
+window.redeemWish = redeemWish;
 
 // 初始化荣誉系统
 function initHonorSystem() {

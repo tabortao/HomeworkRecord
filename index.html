@@ -341,11 +341,15 @@
 
     <!-- 底部导航栏 -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
-        <div class="grid grid-cols-3 h-16">
+        <div class="grid grid-cols-4 h-16">
             <a href="#calendar" class="flex flex-col items-center justify-center text-primary bg-primary/5 page-link" data-page="calendar">
                 <i class="fa fa-calendar-check-o text-lg"></i>
                 <span class="text-xs mt-1 font-medium">计划打卡</span>
             </a>            
+            <a href="#wishes" class="flex flex-col items-center justify-center text-textSecondary hover:bg-gray-50 transition-colors page-link" data-page="wishes">
+                <i class="fa fa-star-o text-lg"></i>
+                <span class="text-xs mt-1">小心愿</span>
+            </a>
             <a href="#subjects" class="flex flex-col items-center justify-center text-textSecondary hover:bg-gray-50 transition-colors page-link" data-page="subjects">
                 <i class="fa fa-book text-lg"></i>
                 <span class="text-xs mt-1">学科</span>
@@ -361,6 +365,91 @@
     <button id="addTaskBtn" class="fixed bottom-20 right-5 w-12 h-12 bg-primary rounded-full shadow-button flex items-center justify-center text-white text-xl hover:bg-dark transition-all transform hover:scale-105">
         <i class="fa fa-plus"></i>
     </button>
+
+    <!-- 小心愿页面 -->
+    <div id="wishes-page" class="container mx-auto px-4 py-3 pb-20 hidden">
+        <!-- 顶部金币显示 -->
+        <div class="bg-blue-50 rounded-xl p-3 mb-4 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-coins text-amber-500 text-xl"></i>
+                <span class="font-medium">可用金币</span>
+                <span id="wishes-coins-display" class="text-xl font-bold text-amber-500">0</span>
+            </div>
+        </div>
+
+        <!-- 小心愿列表 -->
+        <div class="mb-4">
+            <h2 class="text-base font-semibold mb-3 flex items-center">
+                <i class="fa fa-star text-amber-400 mr-2"></i> 我的小心愿
+                <button id="addWishBtn" class="ml-auto px-3 py-1 bg-primary/10 text-primary rounded-lg text-sm hover:bg-primary/20 transition-colors">
+                    <i class="fa fa-plus mr-1"></i> 添加心愿
+                </button>
+            </h2>
+            <div id="wishes-list" class="grid grid-cols-2 gap-3">
+                <!-- 小心愿卡片将通过JavaScript动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑小心愿弹窗 -->
+    <div id="wishModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 mx-4 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="wishModalTitle" class="text-xl font-bold">添加小心愿</h3>
+                <button id="closeWishModalBtn" class="text-textSecondary hover:text-textPrimary transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <form id="wishForm">
+                <div class="space-y-4">
+                    <!-- 图标上传 -->
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">心愿图标</label>
+                        <div class="flex items-center space-x-3">
+                            <div id="wishIconPreview" class="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center text-3xl">
+                                <i class="fa fa-gift text-blue-500"></i>
+                            </div>
+                            <input type="file" id="wishIconUpload" accept="image/*" class="hidden">
+                            <label for="wishIconUpload" class="px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm cursor-pointer hover:bg-primary/20 transition-colors">
+                                <i class="fa fa-upload mr-1"></i> 选择图片
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 愿望名称 -->
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">愿望名称</label>
+                        <input type="text" id="wishName" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入愿望名称">
+                    </div>
+                    
+                    <!-- 愿望内容 -->
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">愿望内容</label>
+                        <textarea id="wishContent" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" rows="3" placeholder="请输入愿望内容"></textarea>
+                    </div>
+                    
+                    <!-- 所需金币 -->
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">所需金币</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-textSecondary">
+                                <i class="fa fa-coins text-amber-500"></i>
+                            </span>
+                            <input type="number" id="wishCost" class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入所需金币数" min="1" max="1000">
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 flex space-x-3">
+                    <button type="button" id="cancelWishBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                        取消
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                        保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- 添加学科弹窗 -->
     <div id="subjectModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
