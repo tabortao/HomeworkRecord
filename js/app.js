@@ -215,7 +215,16 @@ function saveData() {
 // 更新当前用户信息显示
 function updateCurrentUserInfo() {
     const userInfoElement = document.getElementById('currentUserInfo');
-    if (!userInfoElement || !currentUser) return;
+    if (!currentUser) return;
+    
+    // 更新顶部导航栏的用户信息
+    const navUserAvatar = document.getElementById('navUserAvatar');
+    const navUserName = document.getElementById('navUserName');
+    if (navUserAvatar) navUserAvatar.textContent = currentUser.avatar;
+    if (navUserName) navUserName.textContent = currentUser.name;
+    
+    // 更新个人中心页面的用户信息
+    if (userInfoElement)
 
     userInfoElement.innerHTML = `
         <div class="flex items-center justify-between mb-4">
@@ -2215,6 +2224,9 @@ function enhancedInitApp() {
     
     // 初始化荣誉系统
     initHonorSystem();
+    
+    // 更新用户信息显示（包括顶部导航栏）
+    updateCurrentUserInfo();
     
     // 初始化显示日历页面
     enhancedSwitchPage('calendar');
