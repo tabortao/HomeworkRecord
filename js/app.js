@@ -298,7 +298,7 @@ function renderUsersList() {
                     <button data-user-id="${user.id}" class="switchUserBtn px-3 py-1 bg-primary/10 text-primary rounded-lg text-sm hover:bg-primary/20 transition-colors">
                         切换
                     </button>
-                    ${isAdmin ? 
+                    ${isAdmin && users.indexOf(user) !== 0 ? 
                         `<button data-user-id="${user.id}" class="deleteUserBtn px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200 transition-colors">
                             删除
                         </button>` : ''
@@ -379,8 +379,8 @@ function switchUser(userId) {
     // 保存当前用户ID
     saveUsers();
     
-    // 切换回日历页面并更新
-    switchPage('calendar');
+    // 切换回个人中心页面并更新
+    enhancedSwitchPage('profile');
 }
 
 // 渲染添加用户时的头像选项
