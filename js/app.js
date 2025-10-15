@@ -1234,34 +1234,34 @@ function renderSubjectList() {
         const completionRate = subjectTasks.length > 0 ? Math.round((completedTasks.length / subjectTasks.length) * 100) : 0;
         
         const subjectCard = document.createElement('div');
-        subjectCard.className = 'bg-white rounded-xl shadow-card p-5 card-hover';
+        subjectCard.className = 'bg-white rounded-xl shadow-card p-3 card-hover';
         subjectCard.innerHTML = `
-            <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center">
                     <div class="w-4 h-4 rounded-full mr-2" style="background-color: ${SUBJECT_COLORS[subject]}"></div>
-                    <h3 class="font-semibold text-lg">${subject}</h3>
+                    <h3 class="font-semibold">${subject}</h3>
                 </div>
                 <div class="flex space-x-2">
-                    <button class="text-primary hover:text-primary-dark transition-colors" onclick="openAddTaskModalWithSubject('${subject}')">
-                        <i class="fa fa-plus-circle mr-1"></i> 添加任务
+                    <button class="text-primary hover:text-primary-dark transition-colors p-1" onclick="openAddTaskModalWithSubject('${subject}')" title="添加任务">
+                        <i class="fa fa-plus-circle"></i>
                     </button>
-                    <button class="text-red-500 hover:text-red-600 transition-colors delete-subject-btn" data-subject="${subject}">
-                        <i class="fa fa-trash mr-1"></i> 删除
+                    <button class="text-red-500 hover:text-red-600 transition-colors p-1 delete-subject-btn" data-subject="${subject}" title="删除">
+                        <i class="fa fa-trash"></i>
                     </button>
                 </div>
             </div>
-            <div class="grid grid-cols-3 gap-2 text-center">
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <p class="text-sm text-textSecondary">任务总数</p>
-                    <p class="text-xl font-bold">${subjectTasks.length}</p>
+            <div class="grid grid-cols-3 gap-1.5 text-center">
+                <div class="bg-gray-50 p-2 rounded-lg">
+                    <p class="text-xs text-textSecondary">任务总数</p>
+                    <p class="text-base font-bold">${subjectTasks.length}</p>
                 </div>
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <p class="text-sm text-textSecondary">完成率</p>
-                    <p class="text-xl font-bold ${completionRate === 100 ? 'text-green-500' : ''}">${completionRate}%</p>
+                <div class="bg-gray-50 p-2 rounded-lg">
+                    <p class="text-xs text-textSecondary">完成率</p>
+                    <p class="text-base font-bold ${completionRate === 100 ? 'text-green-500' : ''}">${completionRate}%</p>
                 </div>
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <p class="text-sm text-textSecondary">学习时长</p>
-                    <p class="text-xl font-bold">${formatDuration(totalDuration)}</p>
+                <div class="bg-gray-50 p-2 rounded-lg">
+                    <p class="text-xs text-textSecondary">学习时长</p>
+                    <p class="text-base font-bold">${formatDuration(totalDuration)}</p>
                 </div>
             </div>
         `;
