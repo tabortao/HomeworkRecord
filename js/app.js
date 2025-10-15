@@ -109,6 +109,90 @@ const subjectChartContainer = document.getElementById('subjectStatsChart');
 const subjectChartEl = document.getElementById('subjectStatsChart');
 let subjectChart = null;
 
+// 显示小心愿兑换记录
+function showWishRedemptionRecords() {
+    // 过滤出与小心愿兑换相关的记录
+    const wishRecords = activityLogs.filter(log => 
+        log.actionType === 'wish_redeem' || 
+        (log.actionType === 'wish_update' && log.description.includes('兑换'))
+    );
+    
+    // 创建模态框内容
+    let contentHTML = '';
+    
+    if (wishRecords.length === 0) {
+        contentHTML = `
+            <div class="text-center py-8 text-textSecondary">
+                <i class="fa fa-history text-3xl mb-3"></i>
+                <p class="text-lg">暂无兑换记录</p>
+            </div>
+        `;
+    } else {
+        // 按时间倒序排序
+        const sortedRecords = [...wishRecords].sort((a, b) => 
+            new Date(b.timestamp) - new Date(a.timestamp)
+        );
+        
+        contentHTML = '<div class="space-y-3 max-h-[400px] overflow-y-auto pr-2">';
+        sortedRecords.forEach(log => {
+            const logDate = new Date(log.timestamp);
+            const formattedDate = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, '0')}-${String(logDate.getDate()).padStart(2, '0')}`;
+            const formattedTime = `${String(logDate.getHours()).padStart(2, '0')}:${String(logDate.getMinutes()).padStart(2, '0')}`;
+            
+            contentHTML += `
+                <div class="bg-white p-3 rounded-lg border border-gray-100">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="font-medium">${log.description}</div>
+                        <div class="text-xs text-gray-400">${formattedDate} ${formattedTime}</div>
+                    </div>
+                </div>
+            `;
+        });
+        contentHTML += '</div>';
+    }
+    
+    // 使用confirmDialog模态框
+    return new Promise((resolve) => {
+        const confirmDialog = document.getElementById('confirmDialog');
+        const confirmDialogTitle = document.getElementById('confirmDialogTitle');
+        const confirmDialogMessage = document.getElementById('confirmDialogMessage');
+        const confirmDialogConfirm = document.getElementById('confirmDialogConfirm');
+        const confirmDialogCancel = document.getElementById('confirmDialogCancel');
+        const confirmDialogCloseBtn = document.getElementById('confirmDialogCloseBtn');
+        
+        // 隐藏取消按钮
+        confirmDialogCancel.classList.add('hidden');
+        
+        // 设置标题和消息
+        confirmDialogTitle.textContent = '小心愿领取记录';
+        confirmDialogMessage.innerHTML = contentHTML;
+        confirmDialogConfirm.textContent = '关闭';
+        
+        // 显示对话框
+        confirmDialog.classList.remove('hidden');
+        
+        // 创建确认的处理函数
+        const handleConfirm = () => {
+            cleanup();
+            resolve(true);
+        };
+        
+        // 清理函数
+        function cleanup() {
+            confirmDialog.classList.add('hidden');
+            // 恢复取消按钮的显示
+            confirmDialogCancel.classList.remove('hidden');
+            // 移除事件监听器
+            confirmDialogConfirm.removeEventListener('click', handleConfirm);
+            confirmDialogCloseBtn.removeEventListener('click', handleConfirm);
+        }
+        
+        // 添加事件监听器
+        confirmDialogConfirm.addEventListener('click', handleConfirm);
+        confirmDialogCloseBtn.addEventListener('click', handleConfirm);
+    });
+}
+
 // 初始化应用
 function initApp() {
     // 加载本地存储数据
@@ -803,6 +887,12 @@ function saveUsers() {
 
 // 设置事件监听器
 function setupEventListeners() {
+    // 领取记录按钮事件监听
+    const showWishRedemptionRecordsBtn = document.getElementById('showWishRedemptionRecordsBtn');
+    if (showWishRedemptionRecordsBtn) {
+        showWishRedemptionRecordsBtn.addEventListener('click', showWishRedemptionRecords);
+    }
+    
     // 添加任务按钮
     addTaskBtn.addEventListener('click', openAddTaskModal);
     
@@ -2115,7 +2205,12 @@ function redeemWish(wishId) {
                 
                 // 更新小心愿状态
                 wish.status = 'redeemed';
-                saveWishes();
+                
+                // 保存到本地存储但不通过saveWishes()函数添加操作记录
+                localStorage.setItem(`timeManagementWishes_${currentUserId}`, JSON.stringify(wishes));
+                
+                // 直接添加正确的兑换操作记录
+                addActivityLog('wish_redeem', `兑换了心愿「${wish.name}」，花费${wish.cost}金币`);
                 
                 // 更新显示
                 renderWishesList();
@@ -3274,18 +3369,7 @@ startPomodoroTimer = function() {
     return result;
 };
 
-// 为小心愿兑换函数添加操作记录
-if (window.redeemWish) {
-    const originalRedeemWish = window.redeemWish;
-    window.redeemWish = function(wishId) {
-        const wish = wishes.find(w => w.id === wishId);
-        const result = originalRedeemWish.apply(this, arguments);
-        if (wish) {
-            addActivityLog('wish_redeem', `兑换了心愿「${wish.name}」，花费${wish.cost}金币`);
-        }
-        return result;
-    };
-}
+// 移除了重复的操作记录添加逻辑，因为saveWishes()函数已经添加了wish_update记录
 
 // 为小心愿删除函数添加操作记录
 if (window.deleteWish) {
