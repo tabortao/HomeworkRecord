@@ -422,47 +422,43 @@ function renderNewUserAvatarOptions() {
 
 // 删除用户
 function deleteUser(userId) {
-    showConfirmDialog(
-        '确认操作',
-        '确定要删除此用户吗？此操作无法撤销。',
-        async function() {
+    // 显示确认对话框
+    showConfirmDialog('确定要删除此用户吗？此操作无法撤销！').then(function(confirmed) {
+        if (confirmed) {
             try {
-                const confirmed = await showConfirmDialog('确定要删除此用户吗？此操作无法撤销。', '删除用户');
-                if (confirmed) {
-                    // 找到用户索引
-                    const userIndex = users.findIndex(user => user.id === userId);
+                // 找到用户索引
+                const userIndex = users.findIndex(user => user.id === userId);
+                
+                if (userIndex !== -1 && userIndex !== 0) { // 不允许删除管理员用户
+                    // 删除用户相关的数据
+                    localStorage.removeItem(`timeManagementTasks_${userId}`);
+                    localStorage.removeItem(`subjectColors_${userId}`);
                     
-                    if (userIndex !== -1 && userIndex !== 0) { // 不允许删除管理员用户
-                        // 删除用户相关的数据
-                        localStorage.removeItem(`timeManagementTasks_${userId}`);
-                        localStorage.removeItem(`subjectColors_${userId}`);
-                        
-                        // 从用户列表中移除
-                        users.splice(userIndex, 1);
-                        
-                        // 如果当前用户被删除，切换到管理员用户
-                        if (userId === currentUserId) {
-                            currentUserId = users[0].id;
-                            currentUser = users[0];
-                            loadUserData();
-                            switchPage('calendar');
-                        }
-                        
-                        // 保存并更新UI
-                        saveUsers();
-                        renderUsersList();
-                        
-                        showNotification('用户删除成功！', 'success');
-                    } else {
-                        showNotification('无法删除管理员用户或用户不存在！', 'error');
+                    // 从用户列表中移除
+                    users.splice(userIndex, 1);
+                    
+                    // 如果当前用户被删除，切换到管理员用户
+                    if (userId === currentUserId) {
+                        currentUserId = users[0].id;
+                        currentUser = users[0];
+                        loadUserData();
+                        enhancedSwitchPage('calendar');
                     }
+                    
+                    // 保存并更新UI
+                    saveUsers();
+                    renderUsersList();
+                    
+                    showNotification('用户删除成功！', 'success');
+                } else {
+                    showNotification('无法删除管理员用户或用户不存在！', 'error');
                 }
             } catch (error) {
                 console.error('删除用户失败:', error);
                 showNotification('删除用户失败，请重试。', 'error');
             }
         }
-    );
+    });
 }
 
 // 加载当前用户的数据
@@ -1012,6 +1008,42 @@ function setupEventListeners() {
             
             // 重置文件输入，以便可以重复选择同一个文件
             this.value = '';
+        });
+    }
+    
+    // 清除用户数据按钮
+    const clearUserDataBtn = document.getElementById('clearUserDataBtn');
+    if (clearUserDataBtn) {
+        clearUserDataBtn.addEventListener('click', function() {
+            // 获取当前用户ID
+            const currentUserId = localStorage.getItem('currentUserId');
+            if (!currentUserId) {
+                showNotification('没有找到当前用户信息', 'error');
+                return;
+            }
+            
+            // 显示确认对话框并处理Promise
+            showConfirmDialog('确定要清除当前用户的所有数据吗？此操作不可恢复！').then(function(confirmed) {
+                if (confirmed) {
+                    try {
+                        // 清除当前用户的任务数据
+                        localStorage.removeItem(`timeManagementTasks_${currentUserId}`);
+                        
+                        // 清除当前用户的学科颜色数据
+                        localStorage.removeItem(`subjectColors_${currentUserId}`);
+                        
+                        showNotification('用户数据已成功清除', 'success');
+                        
+                        // 重新加载当前用户数据（将加载空数据）
+                        loadUserData();
+                        
+                        // 重新渲染页面
+                        enhancedSwitchPage('calendar');
+                    } catch (error) {
+                        showNotification('清除数据失败：' + error.message, 'error');
+                    }
+                }
+            });
         });
     }
 }
