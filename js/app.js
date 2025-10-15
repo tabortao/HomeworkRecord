@@ -235,7 +235,7 @@ function loadData() {
         users = [
             {
                 id: 'default-user',
-                name: '淘淘同学',
+                name: '儿子',
                 avatar: '👨‍🎓',
                 grade: '幼儿园大班'
             }
@@ -888,7 +888,74 @@ function loadUserData() {
     
     // 加载小心愿
     const savedWishes = localStorage.getItem(`timeManagementWishes_${currentUserId}`);
-    wishes = savedWishes ? JSON.parse(savedWishes) : [];
+    if (savedWishes) {
+        wishes = JSON.parse(savedWishes);
+    } else {
+        // 创建默认的小心愿示例数据（6个默认小心愿：看电视、零花钱、玩平板、玩手机、玩游戏、自由活动）
+        wishes = [
+            {
+                id: Date.now() + 1,
+                name: '看电视',
+                content: '完成学习任务后可以看10分钟动画片',
+                icon: '',
+                iconType: 'emoji',
+                iconEmoji: '📺',
+                cost: 1,
+                status: 'available'
+            },
+            {
+                id: Date.now() + 5,
+                name: '零花钱',
+                content: '累计完成一周任务可兑换零花钱',
+                icon: '',
+                iconType: 'emoji',
+                iconEmoji: '💰',
+                cost: 1,
+                status: 'available'
+            },
+            {
+                id: Date.now() + 3,
+                name: '玩平板',
+                content: '学习进步可以兑换10分钟平板使用时间',
+                icon: '',
+                iconType: 'emoji',
+                iconEmoji: '💻',
+                cost: 1,
+                status: 'available'
+            },
+            {
+                id: Date.now() + 6,
+                name: '玩手机',
+                content: '表现良好可以兑换10分钟手机使用时间',
+                icon: '',
+                iconType: 'emoji',
+                iconEmoji: '📱',
+                cost: 1,
+                status: 'available'
+            },
+            {
+                id: Date.now() + 2,
+                name: '玩游戏',
+                content: '周末可以玩20分钟游戏',
+                icon: '',
+                iconType: 'emoji',
+                iconEmoji: '🎮',
+                cost: 1,
+                status: 'available'
+            },
+            {
+                id: Date.now() + 4,
+                name: '自由活动',
+                content: '完成所有作业后可以兑换30分钟自由支配时间',
+                icon: '',
+                iconType: 'emoji',
+                iconEmoji: '🏃',
+                cost: 1,
+                status: 'available'
+            }
+        ];
+        saveWishes();
+    }
 }
 
 // 重置学科颜色为默认值
@@ -1447,7 +1514,9 @@ function setupEventListeners() {
             users.forEach(user => {
                 allUserData.data[user.id] = {
                     tasks: getUserTasks(user.id),
-                    subjectColors: getUserSubjectColors(user.id)
+                    subjectColors: getUserSubjectColors(user.id),
+                    coins: getUserCoinsByUserId(user.id),
+                    wishes: getUserWishesByUserId(user.id)
                 };
             });
             
@@ -1502,6 +1571,12 @@ function setupEventListeners() {
                             }
                             if (userData.subjectColors) {
                                 localStorage.setItem(`subjectColors_${userId}`, JSON.stringify(userData.subjectColors));
+                            }
+                            if (userData.coins !== undefined) {
+                                localStorage.setItem(`timeManagementCoins_${userId}`, userData.coins);
+                            }
+                            if (userData.wishes) {
+                                localStorage.setItem(`timeManagementWishes_${userId}`, JSON.stringify(userData.wishes));
                             }
                         });
                         
@@ -1568,6 +1643,9 @@ function setupEventListeners() {
                             // 清除当前用户的小心愿数据
                             localStorage.setItem(`timeManagementWishes_${currentUserId}`, JSON.stringify([]));
                             
+                            // 清除当前用户的金币数据
+                            localStorage.setItem(`timeManagementCoins_${currentUserId}`, 0);
+                            
                             showNotification('用户数据已成功清除', 'success');
                             
                             // 重新加载当前用户数据（将加载空数据）
@@ -1575,6 +1653,10 @@ function setupEventListeners() {
                             
                             // 重新渲染当前页面的用户相关数据
                             updateCurrentUserInfo();
+                            
+                            // 更新金币显示
+                            updateCoinsDisplay();
+                            updateWishesCoinsDisplay();
                             
                             // 如果当前显示的是荣誉墙，重新渲染荣誉墙
                             if (document.getElementById('profile-page') && !document.getElementById('profile-page').classList.contains('hidden')) {
@@ -2087,6 +2169,18 @@ function deleteTask(taskId) {
 function getUserCoins() {
     const savedCoins = localStorage.getItem(`timeManagementCoins_${currentUserId}`);
     return savedCoins ? parseInt(savedCoins) : 0;
+}
+
+// 根据用户ID获取金币数
+function getUserCoinsByUserId(userId) {
+    const savedCoins = localStorage.getItem(`timeManagementCoins_${userId}`);
+    return savedCoins ? parseInt(savedCoins) : 0;
+}
+
+// 根据用户ID获取小心愿数据
+function getUserWishesByUserId(userId) {
+    const savedWishes = localStorage.getItem(`timeManagementWishes_${userId}`);
+    return savedWishes ? JSON.parse(savedWishes) : [];
 }
 
 // 保存用户金币数
