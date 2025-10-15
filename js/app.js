@@ -1894,20 +1894,23 @@ function handleTaskFormSubmit(e) {
         // 编辑现有任务
         const taskIndex = tasks.findIndex(t => t.id === currentTaskId);
         if (taskIndex !== -1) {
-            // 记录原始金币数量
-            const originalCoins = tasks[taskIndex].coins || 0;
+            // 记录原始任务信息
+            const originalTask = tasks[taskIndex];
+            const originalCoins = originalTask.coins || 0;
+            const originalStatus = originalTask.status;
             const newCoins = baseTask.coins || 0;
+            const newStatus = baseTask.status;
             
             // 更新任务
             tasks[taskIndex] = {
-                ...tasks[taskIndex],
+                ...originalTask,
                 ...baseTask
             };
             
             // 添加操作记录
             addActivityLog('task_edit', `编辑了任务「${taskName}」`);
             
-            // 计算金币变化量并更新总金币
+            // 处理金币变化：金币数量调整
             const coinsDifference = newCoins - originalCoins;
             if (coinsDifference !== 0) {
                 const currentCoins = getUserCoins();
@@ -1921,6 +1924,31 @@ function handleTaskFormSubmit(e) {
                     : `任务金币调整，扣除 ${Math.abs(coinsDifference)} 金币！`,
                     coinsDifference > 0 ? 'success' : 'error'
                 );
+            }
+            
+            // 处理状态切换的金币调整
+            if (originalStatus !== newStatus) {
+                const taskCoins = newCoins; // 使用新的金币值
+                
+                if (originalStatus === 'completed' && newStatus === 'pending') {
+                    // 从已完成变为待完成，扣除金币
+                    withPasswordVerification('将任务从已完成状态修改为待完成需要验证密码', () => {
+                        const currentCoins = getUserCoins();
+                        const updatedCoins = Math.max(0, currentCoins - taskCoins);
+                        saveUserCoins(updatedCoins);
+                        updateCoinsDisplay();
+                        
+                        showNotification(`扣除 ${taskCoins} 个金币！`, 'error');
+                    });
+                } else if (originalStatus === 'pending' && newStatus === 'completed') {
+                    // 从待完成变为已完成，增加金币
+                    const currentCoins = getUserCoins();
+                    const updatedCoins = currentCoins + taskCoins;
+                    saveUserCoins(updatedCoins);
+                    updateCoinsDisplay();
+                    
+                    showNotification(`获得 ${taskCoins} 个金币！`, 'success');
+                }
             }
         }
     } else {
@@ -3285,7 +3313,8 @@ function completeTaskFromPomodoro() {
             if (!wasCompleted) {
                 const taskCoins = task.coins || 0;
                 const currentCoins = getUserCoins();
-                manageUserCoins(currentCoins + taskCoins);
+                const updatedCoins = currentCoins + taskCoins;
+                saveUserCoins(updatedCoins); // 直接保存金币，不需要密码验证
                 updateCoinsDisplay();
                 // 显示获得金币的提示
                 showNotification(`获得 ${taskCoins} 个金币！`, 'success');
