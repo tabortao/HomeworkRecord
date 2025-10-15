@@ -1769,7 +1769,7 @@ function renderSubjectList() {
             </div>
             <div class="grid grid-cols-3 gap-1.5 text-center">
                 <div class="bg-gray-50 p-2 rounded-lg">
-                    <p class="text-xs text-textSecondary">任务总数</p>
+                    <p class="text-xs text-textSecondary">总数</p>
                     <p class="text-base font-bold">${subjectTasks.length}</p>
                 </div>
                 <div class="bg-gray-50 p-2 rounded-lg">
@@ -1777,7 +1777,7 @@ function renderSubjectList() {
                     <p class="text-base font-bold ${completionRate === 100 ? 'text-green-500' : ''}">${completionRate}%</p>
                 </div>
                 <div class="bg-gray-50 p-2 rounded-lg">
-                    <p class="text-xs text-textSecondary">学习时长</p>
+                    <p class="text-xs text-textSecondary">时长</p>
                     <p class="text-base font-bold">${formatDuration(totalDuration)}</p>
                 </div>
             </div>
@@ -3412,6 +3412,15 @@ function openPomodoroModal(taskId) {
 function closePomodoroModal() {
     pomodoroModalEl.classList.add('hidden');
     
+    // 确保悬浮球隐藏 - 最重要的是在这里也隐藏悬浮球
+    const miniPomodoro = document.getElementById('pomodoroMini');
+    if (miniPomodoro) {
+        miniPomodoro.classList.add('hidden');
+    }
+    if (pomodoroMiniEl) {
+        pomodoroMiniEl.classList.add('hidden');
+    }
+    
     // 停止计时器
     if (pomodoroTimer) {
         clearInterval(pomodoroTimer);
@@ -3456,6 +3465,15 @@ function startPomodoroTimer() {
                 pomodoroTimer = null;
                 isPomodoroRunning = false;
                 startPomodoroBtn.textContent = '开始';
+                
+                // 立即隐藏悬浮球
+                const miniPomodoro = document.getElementById('pomodoroMini');
+                if (miniPomodoro) {
+                    miniPomodoro.classList.add('hidden');
+                }
+                if (pomodoroMiniEl) {
+                    pomodoroMiniEl.classList.add('hidden');
+                }
                 
                 // 自动完成任务
                 completeTaskFromPomodoro();
@@ -3541,6 +3559,17 @@ function completeTaskFromPomodoro() {
             // 更新UI
             renderTaskList();
             updateStatistics();
+            
+            // 确保悬浮球隐藏 - 提前执行隐藏悬浮球操作
+            const miniPomodoro = document.getElementById('pomodoroMini');
+            if (miniPomodoro) {
+                miniPomodoro.classList.add('hidden');
+            }
+            
+            // 同时确保全局变量引用也隐藏
+            if (pomodoroMiniEl) {
+                pomodoroMiniEl.classList.add('hidden');
+            }
             
             // 关闭番茄钟
             closePomodoroModal();
