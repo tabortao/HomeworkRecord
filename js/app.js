@@ -57,7 +57,7 @@ const pomodoroTimerEl = document.getElementById('pomodoroTimer');
 const pomodoroDurationEl = document.getElementById('pomodoroDuration');
 const startPomodoroBtn = document.getElementById('startPomodoroBtn');
 const resetPomodoroBtn = document.getElementById('resetPomodoroBtn');
-const completeTaskBtn = document.getElementById('completeTaskBtn');
+// const completeTaskBtn = document.getElementById('completeTaskBtn'); // 移除已完成按钮变量定义
 const pomodoroMiniEl = document.getElementById('pomodoroMini');
 const pomodoroMiniTimerEl = document.getElementById('pomodoroMiniTimer');
 const taskModalEl = document.getElementById('taskModal');
@@ -1017,7 +1017,7 @@ function setupEventListeners() {
     closePomodoroBtn.addEventListener('click', closePomodoroModal);
     startPomodoroBtn.addEventListener('click', startPomodoroTimer);
     resetPomodoroBtn.addEventListener('click', resetPomodoroTimer);
-    completeTaskBtn.addEventListener('click', completeTaskFromPomodoro);
+    // completeTaskBtn.addEventListener('click', completeTaskFromPomodoro); // 移除已完成按钮事件监听器
     
     // 点击番茄钟弹窗外部区域自动缩小为小圆球
     pomodoroModalEl.addEventListener('click', (e) => {
