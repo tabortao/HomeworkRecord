@@ -393,6 +393,9 @@ function switchUser(userId) {
     
     // 切换回个人中心页面并更新
     enhancedSwitchPage('profile');
+    
+    // 更新金币显示
+    updateCoinsDisplay();
 }
 
 // 渲染添加用户时的头像选项
