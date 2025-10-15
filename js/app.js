@@ -21,9 +21,14 @@ const MAX_LOG_AGE_DAYS = 30; // 记录保留30天
 
 // 默认用户头像列表
 const DEFAULT_AVATARS = [
-    '👨‍🎓', '👩‍🎓', '🎓', '🧑‍🎓', '👧', '👦',
+    '👨‍🎓', '👩‍🎓', '🎓', '🧑', '👧', '👦',
     '🐱', '🐶', '🐼', '🐨', '🐯', '🦁',
-    '🌟', '🌈', '🎨', '🎵', '⚽', '🏀'
+    '🌟', '🌈', '🎨', '🎵', '⚽', '🏀',
+    '🐸', '🐙', '🦄', '🦋', '🐢', '🐠',
+    '🌺', '🌸', '🌼', '🌻', '🍀', '🎈',
+    '🚀', '⭐', '🌙', '☀️', '🌈', '🌍',
+    '🎭', '🎪', '🎯', '🎨', '🎸', '🎺',
+    '🦊', '🐻', '🐨', '🐮', '🐷', '🐸'
 ];
 
 // 颜色主题配置
@@ -2563,24 +2568,35 @@ function renderCalendar() {
         const dayTasks = tasks.filter(task => task.date === dayStr);
         const completedTasks = dayTasks.filter(task => task.status === 'completed').length;
         
+        // 设置日期元素的基础样式
+        let dayClass = 'flex flex-col items-center justify-center h-16 rounded-xl transition-colors relative cursor-pointer';
+        
+        // 选中日期样式
+        if (dayStr === selectedDate) {
+            dayClass += ' bg-primary text-white';
+        } else if (isToday) {
+            // 今日日期特殊样式，但未被选中
+            dayClass += ' hover:bg-gray-100';
+        } else if (isCurrentMonth) {
+            dayClass += ' hover:bg-gray-100';
+        } else {
+            dayClass += ' text-gray-400';
+        }
+        
         const dayEl = document.createElement('div');
-        dayEl.className = `
-            flex flex-col items-center justify-center h-16 rounded-xl transition-colors relative cursor-pointer
-            ${isToday ? 'bg-primary text-white' : 
-              (dayStr === selectedDate ? 'bg-primary/10' : 
-               isCurrentMonth ? 'hover:bg-gray-100' : 'text-gray-400')}
-        `;        
+        dayEl.className = dayClass;        
         
         // 添加点击事件，切换到该日期的任务列表
         dayEl.addEventListener('click', () => {
             selectedDate = dayStr;
             renderTaskList();
             updateStatisticsForSelectedDate();
+            renderCalendar(); // 重新渲染日历以更新选中状态
         });
         
         dayEl.innerHTML = `
             <span class="font-medium">${dayDate}</span>
-            ${isToday ? '<span class="text-xs mt-1 bg-white/20 px-1.5 py-0.5 rounded-full">今</span>' : ''}
+            ${isToday ? '<span class="text-xs mt-1 bg-primary/30 px-1.5 py-0.5 rounded-full font-medium">今</span>' : ''}
             ${dayTasks.length > 0 ? `
                 <div class="absolute bottom-2 left-0 right-0 flex justify-center space-x-0.5">
                     ${Array(dayTasks.length).fill(0).map((_, index) => `
@@ -2589,6 +2605,13 @@ function renderCalendar() {
                 </div>
             ` : ''}
         `;
+        
+        // 为今日日期添加特殊边框标记，使其更明显
+        if (isToday && dayStr !== selectedDate) {
+            const todayMarker = document.createElement('div');
+            todayMarker.className = 'absolute inset-0 rounded-xl border-2 border-primary opacity-70';
+            dayEl.appendChild(todayMarker);
+        }
         
         calendarDaysEl.appendChild(dayEl);
     }

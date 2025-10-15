@@ -556,7 +556,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-textSecondary mb-1">用户头像</label>
-                        <div class="grid grid-cols-6 gap-2 mt-2" id="newUserAvatarOptions">
+                        <div class="grid grid-cols-6 gap-2 mt-2 max-h-64 overflow-y-auto p-1 scrollbar-hide" id="newUserAvatarOptions">
                             <!-- 头像选项将通过JavaScript动态生成 -->
                         </div>
                         <input type="hidden" id="newUserAvatar" value="👨‍🎓">
@@ -571,11 +571,11 @@
                     </div>
                 </div>
                 </div>
-                <div class="mt-6 flex space-x-3">
-                    <button type="button" id="cancelAddUserBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                <div class="mt-8 flex flex-col space-y-3">
+                    <button type="button" id="cancelAddUserBtn" class="w-full px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
                         取消
                     </button>
-                    <button type="submit" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                    <button type="submit" class="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
                         添加
                     </button>
                 </div>
