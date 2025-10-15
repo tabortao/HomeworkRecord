@@ -8,6 +8,18 @@ let currentChart = null;
 let selectedDate = new Date().toISOString().split('T')[0]; // 当前选中的日期
 let selectedSubject = '全部学科'; // 当前选中的学科
 
+// 用户管理相关变量
+let users = [];
+let currentUserId = null;
+let currentUser = null;
+
+// 默认用户头像列表
+const DEFAULT_AVATARS = [
+    '👨‍🎓', '👩‍🎓', '🎓', '🧑‍🎓', '👧', '👦',
+    '🐱', '🐶', '🐼', '🐨', '🐯', '🦁',
+    '🌟', '🌈', '🎨', '🎵', '⚽', '🏀'
+];
+
 // 颜色主题配置
 const SUBJECT_COLORS = {
     '语文': '#FF6B6B',
@@ -90,12 +102,44 @@ function initApp() {
     
     // 设置打卡频次UI交互
     setupFrequencyUIListeners();
+    
+    // 初始化用户管理相关UI
+    updateCurrentUserInfo();
+    renderUsersList();
+    renderAvatarOptions();
 }
 
 // 加载本地存储数据
 function loadData() {
-    // 加载学科颜色数据
-    const savedSubjectColors = localStorage.getItem('subjectColors');
+    // 加载用户数据
+    const savedUsers = localStorage.getItem('users');
+    if (savedUsers) {
+        users = JSON.parse(savedUsers);
+    } else {
+        // 如果没有保存的用户，创建一个默认用户
+        users = [
+            {
+                id: 'default-user',
+                name: '淘淘同学',
+                avatar: '👨‍🎓',
+                grade: '幼儿园大班'
+            }
+        ];
+        saveUsers();
+    }
+    
+    // 加载当前用户ID
+    currentUserId = localStorage.getItem('currentUserId') || users[0].id;
+    
+    // 设置当前用户
+    currentUser = users.find(user => user.id === currentUserId);
+    if (!currentUser) {
+        currentUser = users[0];
+        currentUserId = currentUser.id;
+    }
+    
+    // 加载学科颜色数据（按用户分组）
+    const savedSubjectColors = localStorage.getItem(`subjectColors_${currentUserId}`);
     if (savedSubjectColors) {
         // 使用保存的学科颜色数据覆盖默认颜色
         const parsedColors = JSON.parse(savedSubjectColors);
@@ -105,8 +149,8 @@ function loadData() {
         Object.assign(SUBJECT_COLORS, parsedColors);
     }
     
-    // 加载任务数据
-    const savedTasks = localStorage.getItem('timeManagementTasks');
+    // 加载任务数据（按用户分组）
+    const savedTasks = localStorage.getItem(`timeManagementTasks_${currentUserId}`);
     if (savedTasks) {
         tasks = JSON.parse(savedTasks);
     } else {
@@ -116,7 +160,7 @@ function loadData() {
         } else {
             // 如果模拟数据生成器不可用，使用默认示例数据
             tasks = [
-                {
+                { 
                     id: Date.now() + 1,
                     name: '朗读课文3遍',
                     subject: '语文',
@@ -126,7 +170,7 @@ function loadData() {
                     status: 'completed',
                     date: new Date().toISOString().split('T')[0]
                 },
-                {
+                { 
                     id: Date.now() + 2,
                     name: '完成数学练习',
                     subject: '数学',
@@ -136,7 +180,7 @@ function loadData() {
                     status: 'pending',
                     date: new Date().toISOString().split('T')[0]
                 },
-                {
+                { 
                     id: Date.now() + 3,
                     name: '背诵英语单词',
                     subject: '英语',
@@ -146,7 +190,7 @@ function loadData() {
                     status: 'completed',
                     date: new Date().toISOString().split('T')[0]
                 },
-                {
+                { 
                     id: Date.now() + 4,
                     name: '科学实验记录',
                     subject: '科学',
@@ -164,7 +208,325 @@ function loadData() {
 
 // 保存数据到本地存储
 function saveData() {
-    localStorage.setItem('timeManagementTasks', JSON.stringify(tasks));
+    localStorage.setItem(`timeManagementTasks_${currentUserId}`, JSON.stringify(tasks));
+    localStorage.setItem(`subjectColors_${currentUserId}`, JSON.stringify(SUBJECT_COLORS));
+}
+
+// 更新当前用户信息显示
+function updateCurrentUserInfo() {
+    const userInfoElement = document.getElementById('currentUserInfo');
+    if (!userInfoElement || !currentUser) return;
+
+    userInfoElement.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center">
+                <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mr-4 text-3xl">
+                    ${currentUser.avatar}
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold">${currentUser.name}</h2>
+                    <p class="text-textSecondary text-sm">${currentUser.grade}</p>
+                </div>
+            </div>
+            <button id="editUserInfoBtn" class="px-4 py-1.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors text-sm shadow-button">
+                <i class="fa fa-pencil mr-1"></i> 编辑
+            </button>
+        </div>
+        
+        <div class="flex flex-wrap gap-2 mt-4">
+            <div class="bg-primary/10 text-primary px-3 py-1.5 rounded-lg text-sm">
+                <i class="fa fa-check-circle mr-1"></i> 完成任务 ${getUserTasks(currentUserId).filter(task => task.status === 'completed').length} 个
+            </div>
+            <div class="bg-primary/10 text-primary px-3 py-1.5 rounded-lg text-sm">
+                <i class="fa fa-book mr-1"></i> 学习学科 ${Object.keys(getUserSubjectColors(currentUserId)).length} 个
+            </div>
+            <div class="bg-primary/10 text-primary px-3 py-1.5 rounded-lg text-sm">
+                <i class="fa fa-clock-o mr-1"></i> 专注时间 ${calculateTotalFocusTime()} 分钟
+            </div>
+        </div>
+    `;
+
+    // 添加编辑按钮事件监听
+    const editBtn = document.getElementById('editUserInfoBtn');
+    if (editBtn) {
+        // 移除旧的事件监听器
+        const newEditBtn = editBtn.cloneNode(true);
+        editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+        
+        // 添加新的事件监听器
+        newEditBtn.addEventListener('click', function() {
+            document.getElementById('currentUserInfo').classList.add('hidden');
+            document.getElementById('editUserFormSection').classList.remove('hidden');
+            
+            // 填充表单数据
+            document.getElementById('editUserName').value = currentUser.name;
+            document.getElementById('editUserAvatar').value = currentUser.avatar;
+            document.getElementById('editUserGrade').value = currentUser.grade;
+            
+            // 高亮选中的头像
+            highlightSelectedAvatar();
+        });
+    }
+}
+
+// 渲染用户列表
+function renderUsersList() {
+    const usersListElement = document.getElementById('usersList');
+    if (!usersListElement) return;
+
+    usersListElement.innerHTML = '';
+    
+    users.forEach(user => {
+        const userItem = document.createElement('div');
+        userItem.className = `flex items-center justify-between p-3 rounded-lg transition-colors ${user.id === currentUserId ? 'bg-primary/10 border border-primary/30' : 'hover:bg-gray-50'}`;
+        
+        // 检查当前用户是否是管理员
+        const isAdmin = users.indexOf(user) === 0 && currentUserId === user.id;
+        
+        userItem.innerHTML = `
+            <div class="flex items-center">
+                <span class="text-2xl mr-3">${user.avatar}</span>
+                <div>
+                    <div class="font-medium">${user.name}${isAdmin ? ' (管理员)' : ''}</div>
+                    <div class="text-sm text-textSecondary">${user.grade}</div>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                ${user.id === currentUserId ? 
+                    '<span class="text-xs bg-primary text-white px-2 py-1 rounded-full">当前用户</span>' : 
+                    `
+                    <button data-user-id="${user.id}" class="switchUserBtn px-3 py-1 bg-primary/10 text-primary rounded-lg text-sm hover:bg-primary/20 transition-colors">
+                        切换
+                    </button>
+                    ${isAdmin ? 
+                        `<button data-user-id="${user.id}" class="deleteUserBtn px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200 transition-colors">
+                            删除
+                        </button>` : ''
+                    }
+                    `
+                }
+            </div>
+        `;
+        
+        usersListElement.appendChild(userItem);
+    });
+    
+    // 添加切换用户事件监听
+    document.querySelectorAll('.switchUserBtn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const userId = this.getAttribute('data-user-id');
+            switchUser(userId);
+        });
+    });
+    
+    // 添加删除用户事件监听
+    document.querySelectorAll('.deleteUserBtn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const userId = this.getAttribute('data-user-id');
+            deleteUser(userId);
+        });
+    });
+}
+
+// 渲染头像选项
+function renderAvatarOptions() {
+    const avatarOptionsElement = document.getElementById('avatarOptions');
+    if (!avatarOptionsElement) return;
+
+    avatarOptionsElement.innerHTML = '';
+    
+    DEFAULT_AVATARS.forEach(avatar => {
+        const avatarOption = document.createElement('div');
+        avatarOption.className = `w-12 h-12 flex items-center justify-center text-2xl rounded-lg border-2 cursor-pointer ${avatar === currentUser?.avatar ? 'border-primary bg-primary/5' : 'border-transparent hover:border-gray-300'}`;
+        avatarOption.textContent = avatar;
+        
+        avatarOption.addEventListener('click', function() {
+            document.getElementById('editUserAvatar').value = avatar;
+            highlightSelectedAvatar();
+        });
+        
+        avatarOptionsElement.appendChild(avatarOption);
+    });
+}
+
+// 高亮选中的头像
+function highlightSelectedAvatar() {
+    const selectedAvatar = document.getElementById('editUserAvatar').value;
+    const avatarOptions = document.querySelectorAll('#avatarOptions > div');
+    
+    avatarOptions.forEach(option => {
+        if (option.textContent === selectedAvatar) {
+            option.className = 'w-12 h-12 flex items-center justify-center text-2xl rounded-lg border-2 border-primary bg-primary/5 cursor-pointer';
+        } else {
+            option.className = 'w-12 h-12 flex items-center justify-center text-2xl rounded-lg border-2 border-transparent hover:border-gray-300 cursor-pointer';
+        }
+    });
+}
+
+// 切换用户
+function switchUser(userId) {
+    currentUserId = userId;
+    currentUser = users.find(user => user.id === userId);
+    
+    // 重新加载当前用户的数据
+    loadUserData();
+    
+    // 更新UI
+    updateCurrentUserInfo();
+    renderUsersList();
+    updateSubjectSelect();
+    
+    // 保存当前用户ID
+    saveUsers();
+    
+    // 切换回日历页面并更新
+    switchPage('calendar');
+}
+
+// 渲染添加用户时的头像选项
+function renderNewUserAvatarOptions() {
+    const avatarOptionsContainer = document.getElementById('newUserAvatarOptions');
+    if (!avatarOptionsContainer) return;
+    
+    avatarOptionsContainer.innerHTML = '';
+    
+    // 从DEFAULT_AVATARS数组中渲染头像选项
+    DEFAULT_AVATARS.forEach((avatar, index) => {
+        const avatarOption = document.createElement('div');
+        avatarOption.className = `avatar-option cursor-pointer p-2 rounded-lg transition-colors ${index === 0 ? 'bg-primary/10 border-2 border-primary' : 'hover:bg-gray-100'}`;
+        avatarOption.innerHTML = `<span class="text-3xl">${avatar}</span>`;
+        avatarOption.setAttribute('data-avatar', avatar);
+        
+        // 添加点击事件
+        avatarOption.addEventListener('click', function() {
+            // 移除所有选项的选中状态
+            document.querySelectorAll('.avatar-option').forEach(option => {
+                option.classList.remove('bg-primary/10', 'border-2', 'border-primary');
+                option.classList.add('hover:bg-gray-100');
+            });
+            
+            // 设置当前选项为选中状态
+            this.classList.remove('hover:bg-gray-100');
+            this.classList.add('bg-primary/10', 'border-2', 'border-primary');
+            
+            // 更新隐藏输入字段
+            document.getElementById('newUserAvatar').value = this.getAttribute('data-avatar');
+        });
+        
+        avatarOptionsContainer.appendChild(avatarOption);
+    });
+    
+    // 默认选中第一个头像
+    document.getElementById('newUserAvatar').value = DEFAULT_AVATARS[0];
+}
+
+// 删除用户
+function deleteUser(userId) {
+    showConfirmDialog(
+        '确认操作',
+        '确定要删除此用户吗？此操作无法撤销。',
+        async function() {
+            try {
+                const confirmed = await showConfirmDialog('确定要删除此用户吗？此操作无法撤销。', '删除用户');
+                if (confirmed) {
+                    // 找到用户索引
+                    const userIndex = users.findIndex(user => user.id === userId);
+                    
+                    if (userIndex !== -1 && userIndex !== 0) { // 不允许删除管理员用户
+                        // 删除用户相关的数据
+                        localStorage.removeItem(`timeManagementTasks_${userId}`);
+                        localStorage.removeItem(`subjectColors_${userId}`);
+                        
+                        // 从用户列表中移除
+                        users.splice(userIndex, 1);
+                        
+                        // 如果当前用户被删除，切换到管理员用户
+                        if (userId === currentUserId) {
+                            currentUserId = users[0].id;
+                            currentUser = users[0];
+                            loadUserData();
+                            switchPage('calendar');
+                        }
+                        
+                        // 保存并更新UI
+                        saveUsers();
+                        renderUsersList();
+                        
+                        showNotification('用户删除成功！', 'success');
+                    } else {
+                        showNotification('无法删除管理员用户或用户不存在！', 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('删除用户失败:', error);
+                showNotification('删除用户失败，请重试。', 'error');
+            }
+        }
+    );
+}
+
+// 加载当前用户的数据
+function loadUserData() {
+    // 加载学科颜色
+    const savedSubjectColors = localStorage.getItem(`subjectColors_${currentUserId}`);
+    if (savedSubjectColors) {
+        // 清空当前学科颜色
+        Object.keys(SUBJECT_COLORS).forEach(key => delete SUBJECT_COLORS[key]);
+        
+        // 添加保存的学科颜色
+        const parsedColors = JSON.parse(savedSubjectColors);
+        Object.assign(SUBJECT_COLORS, parsedColors);
+    } else {
+        // 如果没有保存的学科颜色，使用默认值
+        resetSubjectColorsToDefault();
+    }
+    
+    // 加载任务
+    const savedTasks = localStorage.getItem(`timeManagementTasks_${currentUserId}`);
+    tasks = savedTasks ? JSON.parse(savedTasks) : [];
+}
+
+// 重置学科颜色为默认值
+function resetSubjectColorsToDefault() {
+    // 清空当前学科颜色
+    Object.keys(SUBJECT_COLORS).forEach(key => delete SUBJECT_COLORS[key]);
+    
+    // 添加默认学科颜色
+    const defaultSubjectColors = {
+        '语文': '#FF6B6B',
+        '数学': '#4ECDC4',
+        '英语': '#45B7D1',
+        '科学': '#96CEB4',
+        '美术': '#FFD166',
+        '音乐': '#F9C80E'
+    };
+    
+    Object.assign(SUBJECT_COLORS, defaultSubjectColors);
+}
+
+// 获取指定用户的任务
+function getUserTasks(userId) {
+    const savedTasks = localStorage.getItem(`timeManagementTasks_${userId}`);
+    return savedTasks ? JSON.parse(savedTasks) : [];
+}
+
+// 获取指定用户的学科颜色
+function getUserSubjectColors(userId) {
+    const savedSubjectColors = localStorage.getItem(`subjectColors_${userId}`);
+    return savedSubjectColors ? JSON.parse(savedSubjectColors) : {};
+}
+
+// 计算总专注时间
+function calculateTotalFocusTime() {
+    const today = new Date().toISOString().split('T')[0];
+    const todayTasks = tasks.filter(task => task.date === today && task.status === 'completed');
+    return todayTasks.reduce((total, task) => total + (task.actualDuration || 0), 0);
+}
+
+// 保存用户数据到本地存储
+function saveUsers() {
+    localStorage.setItem('users', JSON.stringify(users));
+    localStorage.setItem('currentUserId', currentUserId);
 }
 
 // 设置事件监听器
@@ -362,6 +724,296 @@ function setupEventListeners() {
             subjectColorInput.value = option.dataset.color;
         });
     });
+    
+    // 用户管理相关事件监听
+    // 添加用户按钮
+    const addUserBtn = document.getElementById('addUserBtn');
+    const addUserModal = document.getElementById('addUserModal');
+    const closeAddUserModalBtn = document.getElementById('closeAddUserModalBtn');
+    const cancelAddUserBtn = document.getElementById('cancelAddUserBtn');
+    const addUserForm = document.getElementById('addUserForm');
+    const newUserName = document.getElementById('newUserName');
+    
+    // 打开添加用户模态框
+    if (addUserBtn && addUserModal) {
+        addUserBtn.addEventListener('click', function() {
+            addUserModal.classList.remove('hidden');
+            newUserName.value = '';
+            newUserName.focus();
+            // 渲染头像选项
+            renderNewUserAvatarOptions();
+        });
+    }
+    
+    // 关闭添加用户模态框
+    function closeAddUserModal() {
+        if (addUserModal) {
+            addUserModal.classList.add('hidden');
+        }
+    }
+    
+    // 添加关闭模态框事件监听
+    if (closeAddUserModalBtn) {
+        closeAddUserModalBtn.addEventListener('click', closeAddUserModal);
+    }
+    
+    if (cancelAddUserBtn) {
+        cancelAddUserBtn.addEventListener('click', closeAddUserModal);
+    }
+    
+    // 处理添加用户表单提交
+    if (addUserForm) {
+        addUserForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const userName = newUserName.value.trim();
+            const gradeInput = document.getElementById('newUserGrade');
+            const grade = gradeInput ? gradeInput.value.trim() : '未设置';
+            const avatarInput = document.getElementById('newUserAvatar');
+            const avatar = avatarInput ? avatarInput.value : DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)];
+            
+            if (userName) {
+                const newUser = {
+                    id: Date.now().toString(),
+                    name: userName,
+                    avatar: avatar,
+                    grade: grade
+                };
+                
+                users.push(newUser);
+                saveUsers();
+                renderUsersList();
+                closeAddUserModal();
+                
+                // 提示用户可以切换到新用户
+                showNotification(`用户 "${userName}" 添加成功！`, 'success');
+            }
+        });
+    }
+    
+    // 显示通知的通用函数
+    function showNotification(message, type = 'info') {
+        // 创建通知元素
+        const notification = document.createElement('div');
+        
+        // 根据类型设置样式
+        let bgColor = 'bg-blue-500'; // 默认信息通知
+        if (type === 'success') bgColor = 'bg-green-500';
+        if (type === 'error') bgColor = 'bg-red-500';
+        if (type === 'warning') bgColor = 'bg-yellow-500';
+        
+        notification.className = `fixed top-20 right-5 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300 opacity-0`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        // 显示通知
+        setTimeout(() => {
+            notification.classList.remove('opacity-0');
+            notification.classList.add('opacity-100');
+        }, 10);
+        
+        // 3秒后隐藏通知
+        setTimeout(() => {
+            notification.classList.remove('opacity-100');
+            notification.classList.add('opacity-0');
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 300);
+        }, 3000);
+    }
+
+    // 显示确认对话框
+    function showConfirmDialog(message, title = '确认操作') {
+        return new Promise((resolve) => {
+            const confirmDialog = document.getElementById('confirmDialog');
+            const confirmDialogTitle = document.getElementById('confirmDialogTitle');
+            const confirmDialogMessage = document.getElementById('confirmDialogMessage');
+            const confirmDialogConfirm = document.getElementById('confirmDialogConfirm');
+            const confirmDialogCancel = document.getElementById('confirmDialogCancel');
+            const confirmDialogCloseBtn = document.getElementById('confirmDialogCloseBtn');
+            
+            // 设置标题和消息
+            confirmDialogTitle.textContent = title;
+            confirmDialogMessage.textContent = message;
+            
+            // 显示对话框
+            confirmDialog.classList.remove('hidden');
+            
+            // 创建确认和取消的处理函数
+            const handleConfirm = () => {
+                cleanup();
+                resolve(true);
+            };
+            
+            const handleCancel = () => {
+                cleanup();
+                resolve(false);
+            };
+            
+            // 清理函数
+            function cleanup() {
+                confirmDialog.classList.add('hidden');
+                confirmDialogConfirm.removeEventListener('click', handleConfirm);
+                confirmDialogCancel.removeEventListener('click', handleCancel);
+                confirmDialogCloseBtn.removeEventListener('click', handleCancel);
+            }
+            
+            // 添加事件监听器
+            confirmDialogConfirm.addEventListener('click', handleConfirm);
+            confirmDialogCancel.addEventListener('click', handleCancel);
+            confirmDialogCloseBtn.addEventListener('click', handleCancel);
+        });
+    }
+    
+    // 取消编辑用户信息
+    const cancelEditUserBtn = document.getElementById('cancelEditUserBtn');
+    if (cancelEditUserBtn) {
+        cancelEditUserBtn.addEventListener('click', function() {
+            document.getElementById('currentUserInfo').classList.remove('hidden');
+            document.getElementById('editUserFormSection').classList.add('hidden');
+        });
+    }
+    
+    // 编辑用户信息表单提交
+    const editUserForm = document.getElementById('editUserForm');
+    if (editUserForm) {
+        editUserForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('editUserName').value.trim();
+            const avatar = document.getElementById('editUserAvatar').value;
+            const grade = document.getElementById('editUserGrade').value.trim();
+            
+            if (name) {
+                // 更新当前用户信息
+                const userIndex = users.findIndex(user => user.id === currentUserId);
+                if (userIndex !== -1) {
+                    users[userIndex] = {
+                        ...users[userIndex],
+                        name,
+                        avatar,
+                        grade
+                    };
+                    
+                    currentUser = users[userIndex];
+                    saveUsers();
+                    
+                    // 更新UI
+                    document.getElementById('currentUserInfo').classList.remove('hidden');
+                    document.getElementById('editUserFormSection').classList.add('hidden');
+                    updateCurrentUserInfo();
+                    renderUsersList();
+                }
+            } else {
+                showNotification('用户名不能为空！', 'error');
+            }
+        });
+    }
+    
+    // 导出数据按钮
+    const exportDataBtn = document.getElementById('exportDataBtn');
+    if (exportDataBtn) {
+        exportDataBtn.addEventListener('click', function() {
+            const allUserData = {
+                users: users,
+                data: {}
+            };
+            
+            // 收集每个用户的数据
+            users.forEach(user => {
+                allUserData.data[user.id] = {
+                    tasks: getUserTasks(user.id),
+                    subjectColors: getUserSubjectColors(user.id)
+                };
+            });
+            
+            // 创建JSON文件并下载
+            const dataStr = JSON.stringify(allUserData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `时间管理数据_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        });
+    }
+    
+    // 导入数据按钮
+    const importDataBtn = document.getElementById('importDataBtn');
+    const dataFileInput = document.getElementById('dataFileInput');
+    if (importDataBtn && dataFileInput) {
+        importDataBtn.addEventListener('click', function() {
+            dataFileInput.click();
+        });
+        
+        // 文件选择变化事件
+        dataFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const importedData = JSON.parse(event.target.result);
+                    
+                    // 验证数据格式
+                    if (!importedData.users || !importedData.data) {
+                        throw new Error('数据格式错误');
+                    }
+                    
+                                    // 询问用户是否替换现有数据
+                        if (showConfirmDialog('导入数据将替换现有数据，确定继续吗？')) {
+                        // 保存用户列表
+                        users = importedData.users;
+                        
+                        // 保存每个用户的数据
+                        Object.keys(importedData.data).forEach(userId => {
+                            const userData = importedData.data[userId];
+                            if (userData.tasks) {
+                                localStorage.setItem(`timeManagementTasks_${userId}`, JSON.stringify(userData.tasks));
+                            }
+                            if (userData.subjectColors) {
+                                localStorage.setItem(`subjectColors_${userId}`, JSON.stringify(userData.subjectColors));
+                            }
+                        });
+                        
+                        // 如果有用户，设置当前用户为第一个用户
+                        if (users.length > 0) {
+                            currentUserId = users[0].id;
+                            currentUser = users[0];
+                            
+                            // 重新加载当前用户的数据
+                            loadUserData();
+                        }
+                        
+                        // 保存用户数据
+                        saveUsers();
+                        
+                        // 更新UI
+                        updateCurrentUserInfo();
+                        renderUsersList();
+                        updateSubjectSelect();
+                        
+                        // 切换到日历页面并更新
+                        switchPage('calendar');
+                        
+                        showNotification('数据导入成功！', 'success');
+                    }
+            } catch (error) {
+                showNotification('导入失败：' + error.message, 'error');
+                }
+            };
+            
+            reader.readAsText(file);
+            
+            // 重置文件输入，以便可以重复选择同一个文件
+            this.value = '';
+        });
+    }
 }
 
 // 打开添加任务模态框
@@ -398,12 +1050,12 @@ function handleSubjectFormSubmit(e) {
     const subjectColor = subjectColorInput.value;
     
     if (!subjectName) {
-        alert('请输入学科名称');
+        showNotification('请输入学科名称', 'warning');
         return;
     }
-    
+
     if (SUBJECT_COLORS[subjectName]) {
-        alert('该学科已存在');
+        showNotification('该学科已存在', 'warning');
         return;
     }
     
@@ -572,7 +1224,7 @@ function deleteSubject(subject) {
     // 检查是否有默认学科，不允许删除
     const defaultSubjects = ['语文', '数学', '英语', '科学', '美术', '音乐'];
     if (defaultSubjects.includes(subject)) {
-        alert('默认学科不能删除！');
+        showNotification('默认学科不能删除！', 'warning');
         return;
     }
     
@@ -685,7 +1337,7 @@ function handleTaskFormSubmit(e) {
     const taskDate = new Date().toISOString().split('T')[0];
     
     if (!taskName || taskDuration <= 0) {
-        alert('请填写任务名称和有效时长');
+        showNotification('请填写任务名称和有效时长', 'warning');
         return;
     }
     
@@ -1502,7 +2154,8 @@ function enhancedSwitchPage(pageName) {
         profilePageEl.classList.remove('hidden');
         navProfileBtn.classList.add('active');
         
-        // 渲染荣誉墙
+        // 渲染用户列表和荣誉墙
+        renderUsersList();
         renderHonorWall();
     }
 }

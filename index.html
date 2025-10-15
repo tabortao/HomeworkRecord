@@ -224,15 +224,75 @@
             <h1 class="text-2xl font-bold text-textPrimary">个人中心</h1>
         </header>
         
-        <!-- 个人信息 -->
-        <section class="bg-white rounded-xl shadow-card p-6 mb-6 text-center">
-            <div class="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="fa fa-user-circle-o text-4xl text-primary"></i>
+        <!-- 用户管理 -->
+        <section class="mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold">用户管理</h2>
+                <button id="addUserBtn" class="px-4 py-1.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors text-sm shadow-button">
+                    <i class="fa fa-plus mr-1"></i> 添加用户
+                </button>
             </div>
-            <h2 class="text-xl font-bold">淘淘同学</h2>
-            <p class="text-textSecondary text-sm mt-1">幼儿园大班</p>
+            
+            <div class="bg-white rounded-xl shadow-card p-4 mb-4">
+                <div id="usersList" class="space-y-3">
+                    <!-- 用户列表将通过JavaScript动态生成 -->
+                </div>
+            </div>
         </section>
-
+        
+        <!-- 个人信息 -->
+        <section class="bg-white rounded-xl shadow-card p-6 mb-6">
+            <div id="currentUserInfo">
+                <!-- 当前用户信息将通过JavaScript动态生成 -->
+            </div>
+        </section>
+        
+        <!-- 编辑个人信息表单 (初始隐藏) -->
+        <section id="editUserFormSection" class="bg-white rounded-xl shadow-card p-6 mb-6 hidden">
+            <h2 class="text-lg font-semibold mb-4">编辑个人信息</h2>
+            <form id="editUserForm">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">用户名</label>
+                        <input type="text" id="editUserName" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入用户名">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">用户头像</label>
+                        <div class="grid grid-cols-6 gap-2 mt-2" id="avatarOptions">
+                            <!-- 头像选项将通过JavaScript动态生成 -->
+                        </div>
+                        <input type="hidden" id="editUserAvatar" value="👨‍🎓">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">用户年级</label>
+                        <input type="text" id="editUserGrade" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入年级">
+                    </div>
+                </div>
+                <div class="mt-6 flex space-x-3">
+                    <button type="button" id="cancelEditUserBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                        取消
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                        保存
+                    </button>
+                </div>
+            </form>
+        </section>
+        
+        <!-- 数据管理 -->
+        <section class="bg-white rounded-xl shadow-card p-6 mb-6">
+            <h2 class="text-lg font-semibold mb-4">数据管理</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button id="exportDataBtn" class="px-4 py-3 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors">
+                    <i class="fa fa-download mr-2"></i> 导出用户数据
+                </button>
+                <button id="importDataBtn" class="px-4 py-3 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors">
+                    <i class="fa fa-upload mr-2"></i> 导入用户数据
+                </button>
+                <input type="file" id="dataFileInput" accept=".json" class="hidden">
+            </div>
+        </section>
+        
         <!-- 荣誉墙 -->
         <section class="mb-8">
             <div class="flex items-center justify-between mb-4">
@@ -333,6 +393,62 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- 添加用户弹窗 -->
+    <div id="addUserModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 mx-4 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold">添加新用户</h3>
+                <button id="closeAddUserModalBtn" class="text-textSecondary hover:text-textPrimary transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <form id="addUserForm">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">用户名</label>
+                        <input type="text" id="newUserName" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入用户名" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">用户头像</label>
+                        <div class="grid grid-cols-6 gap-2 mt-2" id="newUserAvatarOptions">
+                            <!-- 头像选项将通过JavaScript动态生成 -->
+                        </div>
+                        <input type="hidden" id="newUserAvatar" value="👨‍🎓">
+                    </div>
+                </div>
+                <div class="mt-6 flex space-x-3">
+                    <button type="button" id="cancelAddUserBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                        取消
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                        添加
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 确认对话框 -->
+    <div id="confirmDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 mx-4 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold" id="confirmDialogTitle">确认操作</h3>
+                <button type="button" id="confirmDialogCloseBtn" class="text-textSecondary hover:text-textPrimary transition-colors">
+                    <i class="fa fa-times text-lg"></i>
+                </button>
+            </div>
+            <p class="text-textPrimary mb-6" id="confirmDialogMessage">您确定要执行此操作吗？</p>
+            <div class="mt-6 flex space-x-3">
+                <button type="button" id="confirmDialogCancel" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                    取消
+                </button>
+                <button type="button" id="confirmDialogConfirm" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                    确定
+                </button>
+            </div>
         </div>
     </div>
 
