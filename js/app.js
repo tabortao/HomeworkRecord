@@ -2550,31 +2550,35 @@ function toggleTaskStatus(taskId) {
     if (task) {
         const wasCompleted = task.status === 'completed';
         
-        // 如果是从未完成变为已完成，直接执行
         if (!wasCompleted) {
-            task.status = 'completed';
-            
-            // 添加操作记录
-            addActivityLog('task_status_change', `将任务「${task.name}」标记为已完成`);
-            
-            if (task.actualDuration === 0) {
-                task.actualDuration = task.plannedDuration;
-            }
-            
-            // 更新金币数
-            const currentCoins = getUserCoins();
-            const taskCoins = task.coins || 0;
-            
-            // 完成任务，增加金币
-            saveUserCoins(currentCoins + taskCoins);
-            updateCoinsDisplay();
-            // 显示获得金币的提示
-            showNotification(`获得 ${taskCoins} 个金币！`, 'success');
-            
-            saveData();
+            // 如果是从未完成变为已完成，也需要密码验证
             renderTaskList();
-            updateStatistics();
-            updateCoinsDisplay();
+            
+            withPasswordVerification('将任务标记为已完成需要验证密码', () => {
+                task.status = 'completed';
+                
+                // 添加操作记录
+                addActivityLog('task_status_change', `将任务「${task.name}」标记为已完成`);
+                
+                if (task.actualDuration === 0) {
+                    task.actualDuration = task.plannedDuration;
+                }
+                
+                // 更新金币数
+                const currentCoins = getUserCoins();
+                const taskCoins = task.coins || 0;
+                
+                // 完成任务，增加金币
+                saveUserCoins(currentCoins + taskCoins);
+                updateCoinsDisplay();
+                // 显示获得金币的提示
+                showNotification(`获得 ${taskCoins} 个金币！`, 'success');
+                
+                saveData();
+                renderTaskList();
+                updateStatistics();
+                updateCoinsDisplay();
+            });
         } else {
             // 如果是从已完成变为未完成，需要密码验证
             // 立即重新渲染任务列表，将复选框恢复为选中状态
