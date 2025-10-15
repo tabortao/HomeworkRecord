@@ -1623,9 +1623,12 @@ function renderTaskList(filter = 'all') {
                                 </div>
                             </div>
                             <div class="flex items-center space-x-3 ml-2">
-                                <span class="text-xs text-textSecondary whitespace-nowrap">
-                                    ${formatDuration(task.plannedDuration)}${task.actualDuration > 0 ? ` / ${formatDuration(task.actualDuration)}` : ''}
-                                </span>
+                                    <button class="text-primary p-1 rounded-full hover:bg-primary/10 transition-colors" onclick="openPomodoroModal(${task.id})" title="开始番茄钟">
+                                        <i class="fa fa-clock-o text-lg"></i>
+                                    </button>
+                                    <span class="text-xs text-textSecondary whitespace-nowrap">
+                                        ${formatDuration(task.plannedDuration)}${task.actualDuration > 0 ? ` / ${formatDuration(task.actualDuration)}` : ''}
+                                    </span>
                                 <span class="text-xs text-amber-500 whitespace-nowrap flex items-center">
                                     <i class="fa fa-coins mr-1"></i>${task.coins || 0}
                                 </span>
