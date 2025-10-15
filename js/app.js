@@ -2203,8 +2203,11 @@ function redeemWish(wishId) {
                 // 扣除金币
                 saveUserCoins(currentCoins - wish.cost);
                 
-                // 更新小心愿状态
-                wish.status = 'redeemed';
+                // 增加兑换次数，不改变心愿状态
+                if (!wish.redemptionCount) {
+                    wish.redemptionCount = 0;
+                }
+                wish.redemptionCount++;
                 
                 // 保存到本地存储但不通过saveWishes()函数添加操作记录
                 localStorage.setItem(`timeManagementWishes_${currentUserId}`, JSON.stringify(wishes));
@@ -2265,30 +2268,33 @@ function renderWishesList() {
         // 生成操作按钮
         let actionHtml = '';
         const currentCoins = getUserCoins();
-        const canRedeem = wish.status === 'available' && currentCoins >= wish.cost;
+        const canRedeem = currentCoins >= wish.cost;
         
-        if (wish.status === 'available') {
-            actionHtml = `
-                <div class="flex items-center justify-between mt-2">
-                    <span class="text-xs text-amber-500 font-medium">
-                        <i class="fa fa-coins mr-1"></i>${wish.cost}
-                    </span>
+        // 检查是否有兑换次数
+        const redemptionCount = wish.redemptionCount || 0;
+        
+        // 总是显示可兑换按钮，只要金币足够
+        actionHtml = `
+            <div class="flex items-center justify-between mt-2">
+                <span class="text-xs text-amber-500 font-medium">
+                    <i class="fa fa-coins mr-1"></i>${wish.cost}
+                </span>
+                ${redemptionCount > 0 ? `
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs text-gray-400">已兑换${redemptionCount}次</span>
+                        <button onclick="redeemWish(${wish.id})" 
+                            class="text-xs px-2 py-1 rounded-full transition-colors ${canRedeem ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-gray-100 text-gray-400'}">
+                            ${canRedeem ? '可兑换' : '金币不足'}
+                        </button>
+                    </div>
+                ` : `
                     <button onclick="redeemWish(${wish.id})" 
                         class="text-xs px-2 py-1 rounded-full transition-colors ${canRedeem ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-gray-100 text-gray-400'}">
                         ${canRedeem ? '可兑换' : '金币不足'}
                     </button>
-                </div>
-            `;
-        } else {
-            actionHtml = `
-                <div class="flex items-center justify-between mt-2">
-                    <span class="text-xs text-gray-400 font-medium">已兑换</span>
-                    <span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-400">
-                        <i class="fa fa-check mr-1"></i>已完成
-                    </span>
-                </div>
-            `;
-        }
+                `}
+            </div>
+        `;
         
         wishCard.innerHTML = `
             ${iconHtml}
