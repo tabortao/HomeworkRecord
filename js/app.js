@@ -15,6 +15,10 @@ let users = [];
 let currentUserId = null;
 let currentUser = null;
 
+// 操作记录相关变量
+let activityLogs = [];
+const MAX_LOG_AGE_DAYS = 30; // 记录保留30天
+
 // 默认用户头像列表
 const DEFAULT_AVATARS = [
     '👨‍🎓', '👩‍🎓', '🎓', '🧑‍🎓', '👧', '👦',
@@ -254,17 +258,135 @@ function loadData() {
         ];
         saveWishes();
     }
+    
+    // 加载操作记录（按用户分组）
+    const savedActivityLogs = localStorage.getItem(`activityLogs_${currentUserId}`);
+    if (savedActivityLogs) {
+        activityLogs = JSON.parse(savedActivityLogs);
+        cleanOldLogs(); // 清理过期记录
+    } else {
+        activityLogs = [];
+    }
 }
 
 // 保存数据到本地存储
 function saveData() {
     localStorage.setItem(`timeManagementTasks_${currentUserId}`, JSON.stringify(tasks));
     localStorage.setItem(`subjectColors_${currentUserId}`, JSON.stringify(SUBJECT_COLORS));
+    localStorage.setItem(`activityLogs_${currentUserId}`, JSON.stringify(activityLogs));
+}
+
+// 添加操作记录
+function addActivityLog(actionType, description) {
+    const log = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        user: currentUser ? currentUser.name : '未知用户',
+        actionType,
+        description
+    };
+    
+    activityLogs.unshift(log); // 新记录添加到开头
+    cleanOldLogs(); // 清理过期记录
+    saveData(); // 保存数据
+}
+
+// 清理过期记录
+function cleanOldLogs() {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - MAX_LOG_AGE_DAYS);
+    
+    activityLogs = activityLogs.filter(log => {
+        const logDate = new Date(log.timestamp);
+        return logDate >= cutoffDate;
+    });
+}
+
+// 显示操作记录
+function displayActivityLogs() {
+    const activityLogContentEl = document.getElementById('activityLogContent');
+    if (!activityLogContentEl) return;
+    
+    activityLogContentEl.innerHTML = '';
+    
+    if (activityLogs.length === 0) {
+        activityLogContentEl.innerHTML = '<p class="text-gray-500 text-center py-4">暂无操作记录</p>';
+        return;
+    }
+    
+    activityLogs.forEach(log => {
+        const logItem = document.createElement('div');
+        logItem.className = 'bg-gray-50 rounded-lg p-3 border border-gray-100';
+        
+        // 格式化时间
+        const logDate = new Date(log.timestamp);
+        const formattedDate = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, '0')}-${String(logDate.getDate()).padStart(2, '0')}`;
+        const formattedTime = `${String(logDate.getHours()).padStart(2, '0')}:${String(logDate.getMinutes()).padStart(2, '0')}`;
+        
+        // 根据操作类型选择图标
+        let iconClass = 'fa-info-circle text-blue-500';
+        switch (log.actionType) {
+            case 'task_add':
+            case 'subject_add':
+            case 'wish_add':
+            case 'user_add':
+                iconClass = 'fa-plus-circle text-green-500';
+                break;
+            case 'task_delete':
+            case 'subject_delete':
+            case 'wish_delete':
+            case 'user_delete':
+                iconClass = 'fa-trash text-red-500';
+                break;
+            case 'task_update':
+            case 'subject_update':
+            case 'wish_update':
+            case 'user_update':
+                iconClass = 'fa-pencil text-amber-500';
+                break;
+            case 'task_complete':
+                iconClass = 'fa-check-circle text-green-500';
+                break;
+            case 'pomodoro_start':
+                iconClass = 'fa-clock-o text-purple-500';
+                break;
+            case 'wish_redeem':
+                iconClass = 'fa-gift text-pink-500';
+                break;
+            case 'data_clear':
+                iconClass = 'fa-exclamation-triangle text-red-500';
+                break;
+        }
+        
+        logItem.innerHTML = `
+            <div class="flex items-start">
+                <div class="mr-3 mt-0.5">
+                    <i class="fa ${iconClass}"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm text-gray-500 mb-1">${formattedDate} ${formattedTime} · ${log.user}</div>
+                    <div class="text-textPrimary">${log.description}</div>
+                </div>
+            </div>
+        `;
+        
+        activityLogContentEl.appendChild(logItem);
+    });
+}
+
+// 清空操作记录
+function clearActivityLogs() {
+    activityLogs = [];
+    localStorage.setItem(`activityLogs_${currentUserId}`, JSON.stringify(activityLogs));
+    displayActivityLogs();
+    showNotification('操作记录已清空', 'success');
 }
 
 // 保存小心愿数据到本地存储
 function saveWishes() {
     localStorage.setItem(`timeManagementWishes_${currentUserId}`, JSON.stringify(wishes));
+    // 添加操作记录
+    addActivityLog('wish_update', '更新了小心愿数据');
 }
 
 // 更新当前用户信息显示
@@ -445,6 +567,9 @@ function switchUser(userId) {
     
     // 保存当前用户ID
     saveUsers();
+    
+    // 添加操作记录
+    addActivityLog('user_switch', `切换到用户「${currentUser.name}」`);
     
     // 切换回个人中心页面并更新
     enhancedSwitchPage('profile');
@@ -1366,6 +1491,13 @@ function handleSubjectFormSubmit(e) {
     // 添加新学科
     SUBJECT_COLORS[subjectName] = subjectColor;
     
+    // 添加操作记录
+    addActivityLog('subject_add', `添加了新学科「${subjectName}」`)
+    
+    // 保存学科数据到本地存储
+    localStorage.setItem('subjectColors', JSON.stringify(SUBJECT_COLORS));
+    SUBJECT_COLORS[subjectName] = subjectColor;
+    
     // 保存学科数据到本地存储
     localStorage.setItem('subjectColors', JSON.stringify(SUBJECT_COLORS));
     
@@ -1551,6 +1683,9 @@ function deleteSubject(subject) {
     // 删除学科颜色配置
     delete SUBJECT_COLORS[subject];
     
+    // 添加操作记录
+    addActivityLog('subject_delete', `删除了学科「${subject}」`);
+    
     // 保存数据
     saveData();
     
@@ -1678,6 +1813,9 @@ function handleTaskFormSubmit(e) {
                 ...baseTask
             };
             
+            // 添加操作记录
+            addActivityLog('task_edit', `编辑了任务「${taskName}」`);
+            
             // 计算金币变化量并更新总金币
             const coinsDifference = newCoins - originalCoins;
             if (coinsDifference !== 0) {
@@ -1733,6 +1871,11 @@ function handleTaskFormSubmit(e) {
                     ...baseTask,
                     date: dateStr
                 });
+                
+                // 只为第一次添加的任务记录操作
+                if (i === 0) {
+                    addActivityLog('task_add', `添加了新任务「${taskName}」`);
+                }
             }
         }
     }
@@ -1746,11 +1889,17 @@ function handleTaskFormSubmit(e) {
 // 删除任务
 function deleteTask(taskId) {
     withPasswordVerification('删除任务需要验证密码', () => {
+        const taskToDelete = tasks.find(t => t.id === taskId);
         if (confirm('确定要删除这个任务吗？')) {
             tasks = tasks.filter(t => t.id !== taskId);
             saveData();
             renderTaskList();
             updateStatistics();
+            
+            // 添加操作记录
+            if (taskToDelete) {
+                addActivityLog('task_delete', `删除了任务「${taskToDelete.name}」`);
+            }
         }
     });
 }
@@ -2073,6 +2222,9 @@ function toggleTaskStatus(taskId) {
     if (task) {
         const wasCompleted = task.status === 'completed';
         task.status = wasCompleted ? 'pending' : 'completed';
+        
+        // 添加操作记录
+        addActivityLog('task_status_change', `将任务「${task.name}」${task.status === 'completed' ? '标记为已完成' : '标记为待完成'}`);
         
         if (task.status === 'completed' && task.actualDuration === 0) {
             task.actualDuration = task.plannedDuration;
@@ -3014,6 +3166,9 @@ function completeTaskFromPomodoro() {
                 showNotification(`获得 ${taskCoins} 个金币！`, 'success');
             }
             
+            // 添加操作记录
+            addActivityLog('task_complete_pomodoro', `通过番茄钟完成了任务「${task.name}」，耗时${task.actualDuration}分钟`);
+            
             // 保存数据
             saveData();
             
@@ -3044,5 +3199,157 @@ window.deleteTask = deleteTask;
 window.openAddTaskModalWithSubject = openAddTaskModalWithSubject;
 window.openPomodoroModal = openPomodoroModal;
 
+// 添加操作记录相关事件监听
+function setupActivityLogListeners() {
+    // 操作记录按钮点击事件
+    const activityLogBtn = document.getElementById('activityLogBtn');
+    const activityLogModal = document.getElementById('activityLogModal');
+    const closeActivityLogBtn = document.getElementById('closeActivityLogBtn');
+    const clearActivityLogBtn = document.getElementById('clearActivityLogBtn');
+    
+    if (activityLogBtn && activityLogModal) {
+        activityLogBtn.addEventListener('click', function() {
+            displayActivityLogs();
+            activityLogModal.classList.remove('hidden');
+        });
+    }
+    
+    if (closeActivityLogBtn && activityLogModal) {
+        closeActivityLogBtn.addEventListener('click', function() {
+            activityLogModal.classList.add('hidden');
+        });
+    }
+    
+    if (clearActivityLogBtn) {
+        clearActivityLogBtn.addEventListener('click', function() {
+            showConfirmDialog('确定要清空所有操作记录吗？此操作不可撤销。').then(confirmed => {
+                if (confirmed) {
+                    clearActivityLogs();
+                }
+            });
+        });
+    }
+    
+    // 点击模态框外部关闭
+    if (activityLogModal) {
+        activityLogModal.addEventListener('click', function(e) {
+            if (e.target === activityLogModal) {
+                activityLogModal.classList.add('hidden');
+            }
+        });
+    }
+}
+
+// 修改增强版初始化函数，添加操作记录监听器
+function enhancedInitAppWithLogs() {
+    enhancedInitApp();
+    setupActivityLogListeners();
+}
+
 // 初始化应用
-document.addEventListener('DOMContentLoaded', enhancedInitApp);
+document.addEventListener('DOMContentLoaded', enhancedInitAppWithLogs);
+
+// 在关键操作点添加操作记录
+// 覆盖一些关键函数以添加操作记录
+const originalSaveData = saveData;
+saveData = function() {
+    originalSaveData.apply(this, arguments);
+    // 注意：不要在saveData中添加操作记录，因为它会被其他函数频繁调用，可能导致循环调用
+};
+
+// 在关键操作点添加操作记录的示例（这些需要根据实际代码结构进行调整）
+// 这里只是添加框架，实际的操作记录需要在各个具体函数中添加
+
+// 为任务完成函数添加操作记录
+const originalCompleteTaskFromPomodoro = completeTaskFromPomodoro;
+completeTaskFromPomodoro = function() {
+    const task = tasks.find(t => t.id === currentPomodoroTaskId);
+    const result = originalCompleteTaskFromPomodoro.apply(this, arguments);
+    if (task) {
+        const duration = Math.max(1, Math.ceil((Date.now() - task.pomodoroStartTime) / 60000));
+        addActivityLog('task_complete', `完成了任务「${task.name}」，用时${duration}分钟`);
+    }
+    return result;
+};
+
+// 为番茄钟开始函数添加操作记录
+const originalStartPomodoroTimer = startPomodoroTimer;
+startPomodoroTimer = function() {
+    const result = originalStartPomodoroTimer.apply(this, arguments);
+    if (!isPomodoroRunning && pomodoroRemainingTime > 0) {
+        const task = tasks.find(t => t.id === currentPomodoroTaskId);
+        if (task && !task.pomodoroStartTime) {
+            task.pomodoroStartTime = Date.now();
+            addActivityLog('pomodoro_start', `开始了任务「${task.name}」的番茄钟`);
+        }
+    }
+    return result;
+};
+
+// 为小心愿兑换函数添加操作记录
+if (window.redeemWish) {
+    const originalRedeemWish = window.redeemWish;
+    window.redeemWish = function(wishId) {
+        const wish = wishes.find(w => w.id === wishId);
+        const result = originalRedeemWish.apply(this, arguments);
+        if (wish) {
+            addActivityLog('wish_redeem', `兑换了心愿「${wish.name}」，花费${wish.cost}金币`);
+        }
+        return result;
+    };
+}
+
+// 为小心愿删除函数添加操作记录
+if (window.deleteWish) {
+    const originalDeleteWish = window.deleteWish;
+    window.deleteWish = function(wishId) {
+        const wishToDelete = wishes.find(w => w.id === wishId);
+        return showConfirmDialog('确定要删除这个小心愿吗？').then(confirmed => {
+            if (confirmed) {
+                const result = originalDeleteWish.apply(this, arguments);
+                if (wishToDelete) {
+                    addActivityLog('wish_delete', `删除了心愿「${wishToDelete.name}」`);
+                }
+                return result;
+            }
+            return false;
+        });
+    };
+}
+
+// 为小心愿编辑和添加函数添加操作记录（需要在实际的函数中添加）
+
+// 为用户删除函数添加操作记录
+const originalDeleteUser = deleteUser;
+deleteUser = function(userId) {
+    const userToDelete = users.find(u => u.id === userId);
+    return withPasswordVerification('删除用户需要验证密码', () => {
+        return showConfirmDialog('确定要删除此用户吗？此操作无法撤销！').then(function(confirmed) {
+            if (confirmed) {
+                const result = originalDeleteUser.apply(this, [userId]);
+                if (userToDelete) {
+                    addActivityLog('user_delete', `删除了用户「${userToDelete.name}」`);
+                }
+                return result;
+            }
+            return false;
+        });
+    });
+};
+
+// 为数据清除函数添加操作记录
+if (window.clearUserData) {
+    const originalClearUserData = window.clearUserData;
+    window.clearUserData = function() {
+        return withPasswordVerification('清除数据需要验证密码', () => {
+            return showConfirmDialog('确定要清除所有数据吗？此操作不可撤销！').then(confirmed => {
+                if (confirmed) {
+                    const result = originalClearUserData.apply(this, arguments);
+                    addActivityLog('data_clear', '清除了所有用户数据');
+                    return result;
+                }
+                return false;
+            });
+        });
+    };
+}
