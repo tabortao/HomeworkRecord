@@ -276,18 +276,21 @@ function renderUsersList() {
 
     usersListElement.innerHTML = '';
     
+    // 检查当前登录用户是否是管理员（第一个用户）
+    const currentUserIsAdmin = users.length > 0 && currentUserId === users[0].id;
+    
     users.forEach(user => {
         const userItem = document.createElement('div');
         userItem.className = `flex items-center justify-between p-3 rounded-lg transition-colors ${user.id === currentUserId ? 'bg-primary/10 border border-primary/30' : 'hover:bg-gray-50'}`;
         
-        // 检查当前用户是否是管理员
-        const isAdmin = users.indexOf(user) === 0 && currentUserId === user.id;
+        // 检查当前正在渲染的用户是否是管理员
+        const isUserAdmin = users.indexOf(user) === 0;
         
         userItem.innerHTML = `
             <div class="flex items-center">
                 <span class="text-2xl mr-3">${user.avatar}</span>
                 <div>
-                    <div class="font-medium">${user.name}${isAdmin ? ' (管理员)' : ''}</div>
+                    <div class="font-medium">${user.name}${isUserAdmin ? ' (管理员)' : ''}</div>
                     <div class="text-sm text-textSecondary">${user.grade}</div>
                 </div>
             </div>
@@ -298,7 +301,7 @@ function renderUsersList() {
                     <button data-user-id="${user.id}" class="switchUserBtn px-3 py-1 bg-primary/10 text-primary rounded-lg text-sm hover:bg-primary/20 transition-colors">
                         切换
                     </button>
-                    ${isAdmin && users.indexOf(user) !== 0 ? 
+                    ${currentUserIsAdmin && !isUserAdmin ? 
                         `<button data-user-id="${user.id}" class="deleteUserBtn px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200 transition-colors">
                             删除
                         </button>` : ''
@@ -420,6 +423,80 @@ function renderNewUserAvatarOptions() {
     document.getElementById('newUserAvatar').value = DEFAULT_AVATARS[0];
 }
 
+// 显示通知的通用函数
+function showNotification(message, type = 'info') {
+    // 创建通知元素
+    const notification = document.createElement('div');
+    
+    // 根据类型设置样式
+    let bgColor = 'bg-blue-500'; // 默认信息通知
+    if (type === 'success') bgColor = 'bg-green-500';
+    if (type === 'error') bgColor = 'bg-red-500';
+    if (type === 'warning') bgColor = 'bg-yellow-500';
+    
+    notification.className = `fixed top-20 right-5 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300 opacity-0`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // 显示通知
+    setTimeout(() => {
+        notification.classList.remove('opacity-0');
+        notification.classList.add('opacity-100');
+    }, 10);
+    
+    // 3秒后隐藏通知
+    setTimeout(() => {
+        notification.classList.remove('opacity-100');
+        notification.classList.add('opacity-0');
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
+}
+
+// 显示确认对话框
+function showConfirmDialog(message, title = '确认操作') {
+    return new Promise((resolve) => {
+        const confirmDialog = document.getElementById('confirmDialog');
+        const confirmDialogTitle = document.getElementById('confirmDialogTitle');
+        const confirmDialogMessage = document.getElementById('confirmDialogMessage');
+        const confirmDialogConfirm = document.getElementById('confirmDialogConfirm');
+        const confirmDialogCancel = document.getElementById('confirmDialogCancel');
+        const confirmDialogCloseBtn = document.getElementById('confirmDialogCloseBtn');
+        
+        // 设置标题和消息
+        confirmDialogTitle.textContent = title;
+        confirmDialogMessage.textContent = message;
+        
+        // 显示对话框
+        confirmDialog.classList.remove('hidden');
+        
+        // 创建确认和取消的处理函数
+        const handleConfirm = () => {
+            cleanup();
+            resolve(true);
+        };
+        
+        const handleCancel = () => {
+            cleanup();
+            resolve(false);
+        };
+        
+        // 清理函数
+        function cleanup() {
+            confirmDialog.classList.add('hidden');
+            confirmDialogConfirm.removeEventListener('click', handleConfirm);
+            confirmDialogCancel.removeEventListener('click', handleCancel);
+            confirmDialogCloseBtn.removeEventListener('click', handleCancel);
+        }
+        
+        // 添加事件监听器
+        confirmDialogConfirm.addEventListener('click', handleConfirm);
+        confirmDialogCancel.addEventListener('click', handleCancel);
+        confirmDialogCloseBtn.addEventListener('click', handleCancel);
+    });
+}
+
 // 删除用户
 function deleteUser(userId) {
     // 显示确认对话框
@@ -442,7 +519,7 @@ function deleteUser(userId) {
                         currentUserId = users[0].id;
                         currentUser = users[0];
                         loadUserData();
-                        enhancedSwitchPage('calendar');
+                        enhancedSwitchPage('profile');
                     }
                     
                     // 保存并更新UI
@@ -788,78 +865,9 @@ function setupEventListeners() {
     }
     
     // 显示通知的通用函数
-    function showNotification(message, type = 'info') {
-        // 创建通知元素
-        const notification = document.createElement('div');
-        
-        // 根据类型设置样式
-        let bgColor = 'bg-blue-500'; // 默认信息通知
-        if (type === 'success') bgColor = 'bg-green-500';
-        if (type === 'error') bgColor = 'bg-red-500';
-        if (type === 'warning') bgColor = 'bg-yellow-500';
-        
-        notification.className = `fixed top-20 right-5 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300 opacity-0`;
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        
-        // 显示通知
-        setTimeout(() => {
-            notification.classList.remove('opacity-0');
-            notification.classList.add('opacity-100');
-        }, 10);
-        
-        // 3秒后隐藏通知
-        setTimeout(() => {
-            notification.classList.remove('opacity-100');
-            notification.classList.add('opacity-0');
-            setTimeout(() => {
-                document.body.removeChild(notification);
-            }, 300);
-        }, 3000);
-    }
 
-    // 显示确认对话框
-    function showConfirmDialog(message, title = '确认操作') {
-        return new Promise((resolve) => {
-            const confirmDialog = document.getElementById('confirmDialog');
-            const confirmDialogTitle = document.getElementById('confirmDialogTitle');
-            const confirmDialogMessage = document.getElementById('confirmDialogMessage');
-            const confirmDialogConfirm = document.getElementById('confirmDialogConfirm');
-            const confirmDialogCancel = document.getElementById('confirmDialogCancel');
-            const confirmDialogCloseBtn = document.getElementById('confirmDialogCloseBtn');
-            
-            // 设置标题和消息
-            confirmDialogTitle.textContent = title;
-            confirmDialogMessage.textContent = message;
-            
-            // 显示对话框
-            confirmDialog.classList.remove('hidden');
-            
-            // 创建确认和取消的处理函数
-            const handleConfirm = () => {
-                cleanup();
-                resolve(true);
-            };
-            
-            const handleCancel = () => {
-                cleanup();
-                resolve(false);
-            };
-            
-            // 清理函数
-            function cleanup() {
-                confirmDialog.classList.add('hidden');
-                confirmDialogConfirm.removeEventListener('click', handleConfirm);
-                confirmDialogCancel.removeEventListener('click', handleCancel);
-                confirmDialogCloseBtn.removeEventListener('click', handleCancel);
-            }
-            
-            // 添加事件监听器
-            confirmDialogConfirm.addEventListener('click', handleConfirm);
-            confirmDialogCancel.addEventListener('click', handleCancel);
-            confirmDialogCloseBtn.addEventListener('click', handleCancel);
-        });
-    }
+
+
     
     // 取消编辑用户信息
     const cancelEditUserBtn = document.getElementById('cancelEditUserBtn');
