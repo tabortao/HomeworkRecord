@@ -708,6 +708,7 @@ function switchUser(userId) {
     
     // 更新金币显示
     updateCoinsDisplay();
+    updateStatistics(); // 更新统计数据，包括今日金币
 }
 
 // 渲染添加用户时的头像选项
@@ -2997,9 +2998,13 @@ function updateStatistics() {
     // 计算学习时间（包含所有学科）
     let studyTime = 0;
     
+    // 计算今日金币
+    let todayCoins = 0;
+    
     completedTasks.forEach(task => {
         const duration = task.actualDuration || task.plannedDuration;
         studyTime += duration; // 所有学科的任务时长都计入学习时间
+        todayCoins += task.coins || 0; // 累计今日获得的金币
     });
     
     // 计算完成率
@@ -3009,6 +3014,7 @@ function updateStatistics() {
     document.getElementById('studyTime').textContent = formatDuration(studyTime);
     document.getElementById('taskCount').textContent = todayTasks.length;
     document.getElementById('completionRate').textContent = `${completionRate}%`;
+    document.getElementById('todayCoins').textContent = todayCoins; // 更新今日金币显示
 }
 
 // 更新选中日期的统计数据
@@ -3373,6 +3379,7 @@ function enhancedInitApp() {
     
     // 更新金币显示
     updateCoinsDisplay();
+    updateStatistics(); // 更新统计数据，包括今日金币
     
     // 初始化金币修改功能
     initCoinsModification();
