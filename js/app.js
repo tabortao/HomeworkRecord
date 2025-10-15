@@ -566,42 +566,45 @@ function showConfirmDialog(message, title = '确认操作') {
 
 // 删除用户
 function deleteUser(userId) {
-    // 显示确认对话框
-    showConfirmDialog('确定要删除此用户吗？此操作无法撤销！').then(function(confirmed) {
-        if (confirmed) {
-            try {
-                // 找到用户索引
-                const userIndex = users.findIndex(user => user.id === userId);
-                
-                if (userIndex !== -1 && userIndex !== 0) { // 不允许删除管理员用户
-                    // 删除用户相关的数据
-                    localStorage.removeItem(`timeManagementTasks_${userId}`);
-                    localStorage.removeItem(`subjectColors_${userId}`);
+    withPasswordVerification('删除用户需要验证密码', () => {
+        // 显示确认对话框
+        showConfirmDialog('确定要删除此用户吗？此操作无法撤销！').then(function(confirmed) {
+            if (confirmed) {
+                try {
+                    // 找到用户索引
+                    const userIndex = users.findIndex(user => user.id === userId);
                     
-                    // 从用户列表中移除
-                    users.splice(userIndex, 1);
-                    
-                    // 如果当前用户被删除，切换到管理员用户
-                    if (userId === currentUserId) {
-                        currentUserId = users[0].id;
-                        currentUser = users[0];
-                        loadUserData();
-                        enhancedSwitchPage('profile');
+                    if (userIndex !== -1 && userIndex !== 0) { // 不允许删除管理员用户
+                        // 删除用户相关的数据
+                        localStorage.removeItem(`timeManagementTasks_${userId}`);
+                        localStorage.removeItem(`subjectColors_${userId}`);
+                        localStorage.removeItem(`timeManagementWishes_${userId}`);
+                        
+                        // 从用户列表中移除
+                        users.splice(userIndex, 1);
+                        
+                        // 如果当前用户被删除，切换到管理员用户
+                        if (userId === currentUserId) {
+                            currentUserId = users[0].id;
+                            currentUser = users[0];
+                            loadUserData();
+                            enhancedSwitchPage('profile');
+                        }
+                        
+                        // 保存并更新UI
+                        saveUsers();
+                        renderUsersList();
+                        
+                        showNotification('用户删除成功！', 'success');
+                    } else {
+                        showNotification('无法删除管理员用户或用户不存在！', 'error');
                     }
-                    
-                    // 保存并更新UI
-                    saveUsers();
-                    renderUsersList();
-                    
-                    showNotification('用户删除成功！', 'success');
-                } else {
-                    showNotification('无法删除管理员用户或用户不存在！', 'error');
+                } catch (error) {
+                    console.error('删除用户失败:', error);
+                    showNotification('删除用户失败，请重试。', 'error');
                 }
-            } catch (error) {
-                console.error('删除用户失败:', error);
-                showNotification('删除用户失败，请重试。', 'error');
             }
-        }
+        });
     });
 }
 
@@ -929,12 +932,18 @@ function setupEventListeners() {
             const avatar = avatarInput ? avatarInput.value : DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)];
             
             if (userName) {
+                const password = document.getElementById('newUserPassword').value;
                 const newUser = {
                     id: Date.now().toString(),
                     name: userName,
                     avatar: avatar,
                     grade: grade
                 };
+                
+                // 如果设置了密码，则保存密码
+                if (password) {
+                    newUser.password = password;
+                }
                 
                 users.push(newUser);
                 saveUsers();
@@ -945,6 +954,111 @@ function setupEventListeners() {
                 showNotification(`用户 "${userName}" 添加成功！`, 'success');
             }
         });
+    }
+    
+    // 密码验证相关函数
+    let passwordDialogResolve = null;
+    let passwordDialogReject = null;
+    
+    // 打开密码验证对话框
+    function showPasswordDialog(message = '此操作需要验证用户密码') {
+        const passwordDialog = document.getElementById('passwordDialog');
+        const passwordDialogMessage = document.getElementById('passwordDialogMessage');
+        const passwordInput = document.getElementById('passwordInput');
+        
+        if (passwordDialog && passwordDialogMessage && passwordInput) {
+            passwordDialogMessage.textContent = message;
+            passwordInput.value = '';
+            passwordDialog.classList.remove('hidden');
+            passwordInput.focus();
+        }
+        
+        return new Promise((resolve, reject) => {
+            passwordDialogResolve = resolve;
+            passwordDialogReject = reject;
+        });
+    }
+    
+    // 关闭密码验证对话框
+    function closePasswordDialog() {
+        const passwordDialog = document.getElementById('passwordDialog');
+        if (passwordDialog) {
+            passwordDialog.classList.add('hidden');
+        }
+        passwordDialogResolve = null;
+        passwordDialogReject = null;
+    }
+    
+    // 验证用户密码
+    function verifyUserPassword(password) {
+        return !currentUser.password || currentUser.password === password;
+    }
+    
+    // 初始化密码对话框事件监听
+    const passwordDialog = document.getElementById('passwordDialog');
+    const passwordDialogCloseBtn = document.getElementById('passwordDialogCloseBtn');
+    const cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
+    const confirmPasswordBtn = document.getElementById('confirmPasswordBtn');
+    const passwordInput = document.getElementById('passwordInput');
+    
+    if (passwordDialogCloseBtn) {
+        passwordDialogCloseBtn.addEventListener('click', () => {
+            if (passwordDialogReject) {
+                passwordDialogReject(new Error('用户取消'));
+            }
+            closePasswordDialog();
+        });
+    }
+    
+    if (cancelPasswordBtn) {
+        cancelPasswordBtn.addEventListener('click', () => {
+            if (passwordDialogReject) {
+                passwordDialogReject(new Error('用户取消'));
+            }
+            closePasswordDialog();
+        });
+    }
+    
+    if (confirmPasswordBtn) {
+        confirmPasswordBtn.addEventListener('click', () => {
+            const password = passwordInput ? passwordInput.value : '';
+            const isValid = verifyUserPassword(password);
+            
+            if (isValid) {
+                if (passwordDialogResolve) {
+                    passwordDialogResolve(true);
+                }
+            } else {
+                showNotification('密码错误，请重试！', 'error');
+                return;
+            }
+            
+            closePasswordDialog();
+        });
+    }
+    
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                confirmPasswordBtn.click();
+            }
+        });
+    }
+    
+    // 包装需要密码验证的函数
+    window.withPasswordVerification = async function(message, action) {
+        // 如果用户没有设置密码，则直接执行操作
+        if (!currentUser.password) {
+            return action();
+        }
+        
+        try {
+            await showPasswordDialog(message);
+            return action();
+        } catch (error) {
+            // 用户取消操作
+            return null;
+        }
     }
     
     // 显示通知的通用函数
@@ -961,28 +1075,76 @@ function setupEventListeners() {
         });
     }
     
+    // 控制旧密码输入框的显示/隐藏
+    function toggleOldPasswordField() {
+        const oldPasswordContainer = document.getElementById('oldPasswordContainer');
+        if (oldPasswordContainer) {
+            // 只有当用户已有密码时才显示旧密码输入框
+            if (currentUser && currentUser.password) {
+                oldPasswordContainer.classList.remove('hidden');
+            } else {
+                oldPasswordContainer.classList.add('hidden');
+            }
+        }
+    }
+    
+    // 当编辑用户表单显示时，检查并控制旧密码字段的显示状态
+    const editUserFormSection = document.getElementById('editUserFormSection');
+    if (editUserFormSection) {
+        // 监听显示状态变化
+        const observer = new MutationObserver(() => {
+            if (!editUserFormSection.classList.contains('hidden')) {
+                toggleOldPasswordField();
+            }
+        });
+        observer.observe(editUserFormSection, { attributes: true, attributeFilter: ['class'] });
+    }
+    
     // 编辑用户信息表单提交
     const editUserForm = document.getElementById('editUserForm');
     if (editUserForm) {
-        editUserForm.addEventListener('submit', function(e) {
+        editUserForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const name = document.getElementById('editUserName').value.trim();
             const avatar = document.getElementById('editUserAvatar').value;
             const grade = document.getElementById('editUserGrade').value.trim();
+            const newPassword = document.getElementById('editUserPassword').value;
+            const oldPassword = document.getElementById('editUserOldPassword')?.value;
             
             if (name) {
                 // 更新当前用户信息
                 const userIndex = users.findIndex(user => user.id === currentUserId);
                 if (userIndex !== -1) {
-                    users[userIndex] = {
+                    const updatedUser = {
                         ...users[userIndex],
                         name,
                         avatar,
                         grade
                     };
                     
-                    currentUser = users[userIndex];
+                    // 如果用户有密码且要修改密码，需要验证旧密码
+                    if (newPassword && currentUser.password) {
+                        // 检查是否有旧密码输入框，如果有且没有输入旧密码，则提示
+                        if (oldPassword === undefined || oldPassword === '') {
+                            showNotification('修改密码需要验证旧密码！', 'error');
+                            return;
+                        }
+                        
+                        // 验证旧密码
+                        if (!verifyUserPassword(oldPassword)) {
+                            showNotification('旧密码不正确！', 'error');
+                            return;
+                        }
+                        
+                        updatedUser.password = newPassword;
+                    } else if (newPassword) {
+                        // 如果用户之前没有密码，则直接设置新密码
+                        updatedUser.password = newPassword;
+                    }
+                    
+                    users[userIndex] = updatedUser;
+                    currentUser = updatedUser;
                     saveUsers();
                     
                     // 更新UI
@@ -990,6 +1152,7 @@ function setupEventListeners() {
                     document.getElementById('editUserFormSection').classList.add('hidden');
                     updateCurrentUserInfo();
                     renderUsersList();
+                    showNotification('用户信息更新成功！', 'success');
                 }
             } else {
                 showNotification('用户名不能为空！', 'error');
@@ -1106,43 +1269,48 @@ function setupEventListeners() {
     const clearUserDataBtn = document.getElementById('clearUserDataBtn');
     if (clearUserDataBtn) {
         clearUserDataBtn.addEventListener('click', function() {
-            // 获取当前用户ID
-            const currentUserId = localStorage.getItem('currentUserId');
-            if (!currentUserId) {
-                showNotification('没有找到当前用户信息', 'error');
-                return;
-            }
-            
-            // 显示确认对话框并处理Promise
-            showConfirmDialog('确定要清除当前用户的所有数据吗？此操作不可恢复！').then(function(confirmed) {
-                if (confirmed) {
-                    try {
-                        // 清除当前用户的任务数据 - 保存空数组而不是完全删除键，防止刷新后生成模拟数据
-                        localStorage.setItem(`timeManagementTasks_${currentUserId}`, JSON.stringify([]));
-                        
-                        // 清除当前用户的学科颜色数据 - 保存空对象而不是完全删除键
-                        localStorage.setItem(`subjectColors_${currentUserId}`, JSON.stringify({}));
-                        
-                        // 重置当前用户的荣誉数据
-                        // 完全清除所有荣誉数据
-                        localStorage.removeItem('timeManagementHonors');
-                        
-                        showNotification('用户数据已成功清除', 'success');
-                        
-                        // 重新加载当前用户数据（将加载空数据）
-                        loadUserData();
-                        
-                        // 重新渲染当前页面的用户相关数据
-                        updateCurrentUserInfo();
-                        
-                        // 如果当前显示的是荣誉墙，重新渲染荣誉墙
-                        if (document.getElementById('profile-page') && !document.getElementById('profile-page').classList.contains('hidden')) {
-                            renderHonorWall();
-                        }
-                    } catch (error) {
-                        showNotification('清除数据失败：' + error.message, 'error');
-                    }
+            withPasswordVerification('清除数据需要验证密码', () => {
+                // 获取当前用户ID
+                const currentUserId = localStorage.getItem('currentUserId');
+                if (!currentUserId) {
+                    showNotification('没有找到当前用户信息', 'error');
+                    return;
                 }
+                
+                // 显示确认对话框并处理Promise
+                showConfirmDialog('确定要清除当前用户的所有数据吗？此操作不可恢复！').then(function(confirmed) {
+                    if (confirmed) {
+                        try {
+                            // 清除当前用户的任务数据 - 保存空数组而不是完全删除键，防止刷新后生成模拟数据
+                            localStorage.setItem(`timeManagementTasks_${currentUserId}`, JSON.stringify([]));
+                            
+                            // 清除当前用户的学科颜色数据 - 保存空对象而不是完全删除键
+                            localStorage.setItem(`subjectColors_${currentUserId}`, JSON.stringify({}));
+                            
+                            // 重置当前用户的荣誉数据
+                            // 完全清除所有荣誉数据
+                            localStorage.removeItem('timeManagementHonors');
+                            
+                            // 清除当前用户的小心愿数据
+                            localStorage.setItem(`timeManagementWishes_${currentUserId}`, JSON.stringify([]));
+                            
+                            showNotification('用户数据已成功清除', 'success');
+                            
+                            // 重新加载当前用户数据（将加载空数据）
+                            loadUserData();
+                            
+                            // 重新渲染当前页面的用户相关数据
+                            updateCurrentUserInfo();
+                            
+                            // 如果当前显示的是荣誉墙，重新渲染荣誉墙
+                            if (document.getElementById('profile-page') && !document.getElementById('profile-page').classList.contains('hidden')) {
+                                renderHonorWall();
+                            }
+                        } catch (error) {
+                            showNotification('清除数据失败：' + error.message, 'error');
+                        }
+                    }
+                });
             });
         });
     }
@@ -1150,23 +1318,27 @@ function setupEventListeners() {
 
 // 打开添加任务模态框
 function openAddTaskModal() {
-    currentTaskId = null;
-    modalTitleEl.textContent = '添加新任务';
-    taskFormEl.reset();
-    taskModalEl.classList.remove('hidden');
-    document.getElementById('taskName').focus();
+    withPasswordVerification('添加任务需要验证密码', () => {
+        currentTaskId = null;
+        modalTitleEl.textContent = '添加新任务';
+        taskFormEl.reset();
+        taskModalEl.classList.remove('hidden');
+        document.getElementById('taskName').focus();
+    });
 }
 
 // 打开添加学科模态框
 function openAddSubjectModal() {
-    subjectNameInput.value = '';
-    subjectColorInput.value = '#FF6B6B';
-    // 重置颜色选项状态
-    colorOptions.forEach(opt => opt.classList.remove('ring-4', 'ring-primary/30'));
-    // 默认选中第一个颜色
-    colorOptions[0]?.classList.add('ring-4', 'ring-primary/30');
-    subjectModalEl.classList.remove('hidden');
-    subjectNameInput.focus();
+    withPasswordVerification('添加学科需要验证密码', () => {
+        subjectNameInput.value = '';
+        subjectColorInput.value = '#FF6B6B';
+        // 重置颜色选项状态
+        colorOptions.forEach(opt => opt.classList.remove('ring-4', 'ring-primary/30'));
+        // 默认选中第一个颜色
+        colorOptions[0]?.classList.add('ring-4', 'ring-primary/30');
+        subjectModalEl.classList.remove('hidden');
+        subjectNameInput.focus();
+    });
 }
 
 // 关闭学科模态框
@@ -1450,12 +1622,14 @@ function renderSubjectStatsChart() {
 
 // 打开添加任务模态框并预填学科
 function openAddTaskModalWithSubject(subject) {
-    currentTaskId = null;
-    modalTitleEl.textContent = '添加新任务';
-    taskFormEl.reset();
-    document.getElementById('taskSubject').value = subject;
-    taskModalEl.classList.remove('hidden');
-    document.getElementById('taskName').focus();
+    withPasswordVerification('添加任务需要验证密码', () => {
+        currentTaskId = null;
+        modalTitleEl.textContent = '添加新任务';
+        taskFormEl.reset();
+        document.getElementById('taskSubject').value = subject;
+        taskModalEl.classList.remove('hidden');
+        document.getElementById('taskName').focus();
+    });
 }
 
 // 处理任务表单提交
@@ -1509,7 +1683,7 @@ function handleTaskFormSubmit(e) {
             if (coinsDifference !== 0) {
                 const currentCoins = getUserCoins();
                 const updatedCoins = currentCoins + coinsDifference;
-                saveUserCoins(updatedCoins);
+                manageUserCoins(updatedCoins);
                 updateCoinsDisplay();
                 
                 // 显示金币变化通知
@@ -1571,12 +1745,14 @@ function handleTaskFormSubmit(e) {
 
 // 删除任务
 function deleteTask(taskId) {
-    if (confirm('确定要删除这个任务吗？')) {
-        tasks = tasks.filter(t => t.id !== taskId);
-        saveData();
-        renderTaskList();
-        updateStatistics();
-    }
+    withPasswordVerification('删除任务需要验证密码', () => {
+        if (confirm('确定要删除这个任务吗？')) {
+            tasks = tasks.filter(t => t.id !== taskId);
+            saveData();
+            renderTaskList();
+            updateStatistics();
+        }
+    });
 }
 
 // 获取用户总金币数
@@ -1588,6 +1764,16 @@ function getUserCoins() {
 // 保存用户金币数
 function saveUserCoins(coins) {
     localStorage.setItem(`timeManagementCoins_${currentUserId}`, coins);
+}
+
+// 带密码验证的金币管理函数
+function manageUserCoins(newCoins) {
+    withPasswordVerification('修改金币数量需要验证密码', () => {
+        saveUserCoins(newCoins);
+        updateCoinsDisplay();
+        updateWishesCoinsDisplay();
+        showNotification('金币数量更新成功', 'success');
+    });
 }
 
 // 更新显示金币数
@@ -1763,31 +1949,33 @@ function deleteWish(wishId) {
 
 // 兑换小心愿
 function redeemWish(wishId) {
-    const wish = wishes.find(w => w.id === wishId);
-    if (!wish) return;
-    
-    const currentCoins = getUserCoins();
-    if (currentCoins < wish.cost) {
-        showNotification('金币不足，无法兑换', 'error');
-        return;
-    }
-    
-    showConfirmDialog(`确定要花费 ${wish.cost} 金币兑换「${wish.name}」吗？`).then(confirmed => {
-        if (confirmed) {
-            // 扣除金币
-            saveUserCoins(currentCoins - wish.cost);
-            
-            // 更新小心愿状态
-            wish.status = 'redeemed';
-            saveWishes();
-            
-            // 更新显示
-            renderWishesList();
-            updateWishesCoinsDisplay();
-            updateCoinsDisplay();
-            
-            showNotification(`成功兑换「${wish.name}」！`, 'success');
+    withPasswordVerification('心愿兑换需要验证密码', () => {
+        const wish = wishes.find(w => w.id === wishId);
+        if (!wish) return;
+        
+        const currentCoins = getUserCoins();
+        if (currentCoins < wish.cost) {
+            showNotification('金币不足，无法兑换', 'error');
+            return;
         }
+        
+        showConfirmDialog(`确定要花费 ${wish.cost} 金币兑换「${wish.name}」吗？`).then(confirmed => {
+            if (confirmed) {
+                // 扣除金币
+                saveUserCoins(currentCoins - wish.cost);
+                
+                // 更新小心愿状态
+                wish.status = 'redeemed';
+                saveWishes();
+                
+                // 更新显示
+                renderWishesList();
+                updateWishesCoinsDisplay();
+                updateCoinsDisplay();
+                
+                showNotification(`成功兑换「${wish.name}」！`, 'success');
+            }
+        });
     });
 }
 
@@ -1902,7 +2090,7 @@ function toggleTaskStatus(taskId) {
             showNotification(`获得 ${taskCoins} 个金币！`, 'success');
         } else if (wasCompleted && task.status === 'pending') {
             // 取消完成，减少金币
-            saveUserCoins(Math.max(0, currentCoins - taskCoins));
+            manageUserCoins(Math.max(0, currentCoins - taskCoins));
             updateCoinsDisplay();
         }
         
@@ -2820,7 +3008,7 @@ function completeTaskFromPomodoro() {
             if (!wasCompleted) {
                 const taskCoins = task.coins || 0;
                 const currentCoins = getUserCoins();
-                saveUserCoins(currentCoins + taskCoins);
+                manageUserCoins(currentCoins + taskCoins);
                 updateCoinsDisplay();
                 // 显示获得金币的提示
                 showNotification(`获得 ${taskCoins} 个金币！`, 'success');
