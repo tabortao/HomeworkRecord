@@ -1134,6 +1134,12 @@ function setupEventListeners() {
     // 学科相关事件监听
     addSubjectBtn.addEventListener('click', openAddSubjectModal);
     cancelSubjectBtn.addEventListener('click', closeSubjectModal);
+    
+    // 为关闭按钮添加事件监听器
+    const closeSubjectModalBtn = document.getElementById('closeSubjectModalBtn');
+    if (closeSubjectModalBtn) {
+        closeSubjectModalBtn.addEventListener('click', closeSubjectModal);
+    }
     subjectFormEl.addEventListener('submit', handleSubjectFormSubmit);
     
     // 颜色选择
@@ -1311,7 +1317,12 @@ function setupEventListeners() {
     
     // 包装需要密码验证的函数
     window.withPasswordVerification = async function(message, action) {
-        // 即使用户没有设置密码，也需要验证（可以留空密码提交）
+        // 用户未设置密码时，直接执行操作
+        if (!currentUser || !currentUser.password) {
+            return action();
+        }
+        
+        // 用户设置了密码时，进行密码验证
         try {
             const isVerified = await showPasswordDialog(message);
             if (isVerified) {
