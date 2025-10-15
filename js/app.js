@@ -1043,19 +1043,33 @@ function setupEventListeners() {
             showConfirmDialog('确定要清除当前用户的所有数据吗？此操作不可恢复！').then(function(confirmed) {
                 if (confirmed) {
                     try {
-                        // 清除当前用户的任务数据
-                        localStorage.removeItem(`timeManagementTasks_${currentUserId}`);
+                        // 清除当前用户的任务数据 - 保存空数组而不是完全删除键，防止刷新后生成模拟数据
+                        localStorage.setItem(`timeManagementTasks_${currentUserId}`, JSON.stringify([]));
                         
-                        // 清除当前用户的学科颜色数据
-                        localStorage.removeItem(`subjectColors_${currentUserId}`);
+                        // 清除当前用户的学科颜色数据 - 保存空对象而不是完全删除键
+                        localStorage.setItem(`subjectColors_${currentUserId}`, JSON.stringify({}));
+                        
+                        // 重置当前用户的荣誉数据
+                        const honorData = getHonorData();
+                        const currentMonth = new Date().toISOString().slice(0, 7);
+                        // 清空当月的荣誉记录
+                        if (honorData.earnedHonors[currentMonth]) {
+                            honorData.earnedHonors[currentMonth] = {};
+                        }
+                        saveHonorData(honorData);
                         
                         showNotification('用户数据已成功清除', 'success');
                         
                         // 重新加载当前用户数据（将加载空数据）
                         loadUserData();
                         
-                        // 重新渲染页面
-                        enhancedSwitchPage('calendar');
+                        // 重新渲染当前页面的用户相关数据
+                        updateCurrentUserInfo();
+                        
+                        // 如果当前显示的是荣誉墙，重新渲染荣誉墙
+                        if (document.getElementById('profile-page') && !document.getElementById('profile-page').classList.contains('hidden')) {
+                            renderHonorWall();
+                        }
                     } catch (error) {
                         showNotification('清除数据失败：' + error.message, 'error');
                     }
