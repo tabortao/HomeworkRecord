@@ -2058,6 +2058,141 @@ function updateCoinsDisplay() {
     }
 }
 
+// 初始化金币修改功能
+function initCoinsModification() {
+    // 使用更精确的选择器找到金币图标元素
+    // 先找到包含金币的容器，再找到其中的图标
+    const coinsContainer = document.querySelector('#calendar-page section.grid div:last-child');
+    if (coinsContainer) {
+        const coinsIcon = coinsContainer.querySelector('i.fa.fa-money');
+        const iconWrapper = coinsIcon ? coinsIcon.parentElement : null;
+        
+        if (iconWrapper) {
+            // 添加样式和事件监听器到图标容器
+            iconWrapper.style.cursor = 'pointer';
+            iconWrapper.title = '单击修改金币数量';
+            iconWrapper.addEventListener('click', showModifyCoinsDialog);
+            
+            // 同时也为金币数字添加点击事件，提供更好的用户体验
+            const coinsNumber = coinsContainer.querySelector('#totalCoins');
+            if (coinsNumber) {
+                coinsNumber.style.cursor = 'pointer';
+                coinsNumber.title = '单击修改金币数量';
+                coinsNumber.addEventListener('click', showModifyCoinsDialog);
+            }
+        }
+    }
+    
+    // 添加页面切换时的重新初始化
+    const originalSwitchPage = enhancedSwitchPage;
+    window.enhancedSwitchPage = function(pageId) {
+        originalSwitchPage(pageId);
+        // 当切换到日历页面时重新初始化金币修改功能
+        if (pageId === 'calendar') {
+            setTimeout(initCoinsModification, 100); // 延迟一点确保DOM已更新
+        }
+    };
+}
+
+// 显示修改金币对话框
+function showModifyCoinsDialog() {
+    withPasswordVerification('修改金币数量需要验证密码', () => {
+        // 获取当前金币数并显示对话框
+        const currentCoins = getUserCoins();
+        const modifyCoinsDialog = document.getElementById('modifyCoinsDialog');
+        const currentCoinsValue = document.getElementById('currentCoinsValue');
+        const newCoinsInput = document.getElementById('newCoinsInput');
+        const coinsReasonInput = document.getElementById('coinsReasonInput');
+        
+        if (modifyCoinsDialog && currentCoinsValue && newCoinsInput && coinsReasonInput) {
+            // 设置当前金币数显示
+            currentCoinsValue.textContent = currentCoins;
+            
+            // 清空输入框
+            newCoinsInput.value = '';
+            coinsReasonInput.value = '';
+            
+            // 显示对话框
+            modifyCoinsDialog.classList.remove('hidden');
+            newCoinsInput.focus();
+            
+            // 保存函数 - 处理金币修改
+            function handleSaveCoins() {
+                const newCoins = newCoinsInput.value;
+                const coinsNum = parseInt(newCoins);
+                const reason = coinsReasonInput.value;
+                
+                if (!isNaN(coinsNum)) {
+                    if (reason !== null && reason.trim() !== '') {
+                        // 保存新的金币数量
+                        saveUserCoins(coinsNum);
+                        
+                        // 更新显示
+                        updateCoinsDisplay();
+                        updateWishesCoinsDisplay();
+                        
+                        // 记录操作日志
+                        const coinsDifference = coinsNum - currentCoins;
+                        const actionDescription = `修改金币数量从 ${currentCoins} 到 ${coinsNum}（${coinsDifference > 0 ? '增加' : '减少'} ${Math.abs(coinsDifference)} 金币），原因：${reason}`;
+                        addActivityLog('coins_modify', actionDescription);
+                        
+                        // 显示成功通知
+                        showNotification('金币数量修改成功', 'success');
+                        
+                        // 关闭对话框
+                        closeModifyCoinsDialog();
+                    } else {
+                        showNotification('请输入修改原因', 'error');
+                    }
+                } else {
+                    showNotification('请输入有效的数字', 'error');
+                }
+            }
+            
+            // 关闭对话框函数
+            function closeModifyCoinsDialog() {
+                modifyCoinsDialog.classList.add('hidden');
+                // 移除事件监听器以避免重复绑定
+                saveCoinsBtn.removeEventListener('click', handleSaveCoins);
+                modifyCoinsCloseBtn.removeEventListener('click', closeModifyCoinsDialog);
+                cancelCoinsBtn.removeEventListener('click', closeModifyCoinsDialog);
+            }
+            
+            // 获取对话框按钮元素
+            const saveCoinsBtn = document.getElementById('saveCoinsBtn');
+            const modifyCoinsCloseBtn = document.getElementById('modifyCoinsCloseBtn');
+            const cancelCoinsBtn = document.getElementById('cancelCoinsBtn');
+            
+            // 添加事件监听器
+            if (saveCoinsBtn) {
+                saveCoinsBtn.addEventListener('click', handleSaveCoins);
+            }
+            
+            if (modifyCoinsCloseBtn) {
+                modifyCoinsCloseBtn.addEventListener('click', closeModifyCoinsDialog);
+            }
+            
+            if (cancelCoinsBtn) {
+                cancelCoinsBtn.addEventListener('click', closeModifyCoinsDialog);
+            }
+            
+            // 添加回车键事件监听
+            newCoinsInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    coinsReasonInput.focus();
+                }
+            });
+            
+            coinsReasonInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSaveCoins();
+                }
+            });
+        }
+    });
+}
+
 // 更新小心愿页面的金币显示
 function updateWishesCoinsDisplay() {
     if (wishesCoinsDisplayEl) {
@@ -3191,6 +3326,9 @@ function enhancedInitApp() {
     
     // 更新金币显示
     updateCoinsDisplay();
+    
+    // 初始化金币修改功能
+    initCoinsModification();
 }
 
 // 番茄钟相关函数
