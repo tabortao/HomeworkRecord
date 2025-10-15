@@ -133,7 +133,8 @@ function generateMockTasks() {
                 plannedDuration: plannedDuration,
                 actualDuration: actualDuration,
                 status: status,
-                date: dateStr
+                date: dateStr,
+                coins: Math.floor(Math.random() * 10) + 1 // 1-10个金币
             });
         }
     }

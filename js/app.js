@@ -1159,6 +1159,7 @@ function openEditTaskModal(taskId) {
     document.getElementById('taskName').value = task.name;
     document.getElementById('taskSubject').value = task.subject;
     document.getElementById('taskDuration').value = task.plannedDuration;
+    document.getElementById('taskCoins').value = task.coins || 0;
     document.getElementById('taskDescription').value = task.description;
     
     if (task.status === 'completed') {
@@ -1410,6 +1411,7 @@ function handleTaskFormSubmit(e) {
         subject: taskSubject,
         description: taskDescription,
         plannedDuration: taskDuration,
+        coins: parseInt(document.getElementById('taskCoins').value) || 0,
         actualDuration: 0,
         status: taskStatus
     };
@@ -1418,10 +1420,31 @@ function handleTaskFormSubmit(e) {
         // 编辑现有任务
         const taskIndex = tasks.findIndex(t => t.id === currentTaskId);
         if (taskIndex !== -1) {
+            // 记录原始金币数量
+            const originalCoins = tasks[taskIndex].coins || 0;
+            const newCoins = baseTask.coins || 0;
+            
+            // 更新任务
             tasks[taskIndex] = {
                 ...tasks[taskIndex],
                 ...baseTask
             };
+            
+            // 计算金币变化量并更新总金币
+            const coinsDifference = newCoins - originalCoins;
+            if (coinsDifference !== 0) {
+                const currentCoins = getUserCoins();
+                const updatedCoins = currentCoins + coinsDifference;
+                saveUserCoins(updatedCoins);
+                updateCoinsDisplay();
+                
+                // 显示金币变化通知
+                showNotification(coinsDifference > 0 
+                    ? `任务金币调整，获得 ${coinsDifference} 金币！` 
+                    : `任务金币调整，扣除 ${Math.abs(coinsDifference)} 金币！`,
+                    coinsDifference > 0 ? 'success' : 'error'
+                );
+            }
         }
     } else {
         // 添加新任务，根据打卡频次生成任务
@@ -1482,17 +1505,57 @@ function deleteTask(taskId) {
     }
 }
 
+// 获取用户总金币数
+function getUserCoins() {
+    const savedCoins = localStorage.getItem(`timeManagementCoins_${currentUserId}`);
+    return savedCoins ? parseInt(savedCoins) : 0;
+}
+
+// 保存用户金币数
+function saveUserCoins(coins) {
+    localStorage.setItem(`timeManagementCoins_${currentUserId}`, coins);
+}
+
+// 更新显示金币数
+function updateCoinsDisplay() {
+    const totalCoins = getUserCoins();
+    const coinsDisplay = document.getElementById('totalCoins');
+    if (coinsDisplay) {
+        coinsDisplay.textContent = totalCoins;
+    }
+}
+
 // 切换任务完成状态
 function toggleTaskStatus(taskId) {
     const task = tasks.find(t => t.id === taskId);
     if (task) {
-        task.status = task.status === 'completed' ? 'pending' : 'completed';
+        const wasCompleted = task.status === 'completed';
+        task.status = wasCompleted ? 'pending' : 'completed';
+        
         if (task.status === 'completed' && task.actualDuration === 0) {
             task.actualDuration = task.plannedDuration;
         }
+        
+        // 更新金币数
+        const currentCoins = getUserCoins();
+        const taskCoins = task.coins || 0;
+        
+        if (!wasCompleted && task.status === 'completed') {
+            // 完成任务，增加金币
+            saveUserCoins(currentCoins + taskCoins);
+            updateCoinsDisplay();
+            // 显示获得金币的提示
+            showNotification(`获得 ${taskCoins} 个金币！`, 'success');
+        } else if (wasCompleted && task.status === 'pending') {
+            // 取消完成，减少金币
+            saveUserCoins(Math.max(0, currentCoins - taskCoins));
+            updateCoinsDisplay();
+        }
+        
         saveData();
         renderTaskList();
         updateStatistics();
+        updateCoinsDisplay();
     }
 }
 
@@ -1559,9 +1622,12 @@ function renderTaskList(filter = 'all') {
                                     <p class="text-xs text-textSecondary mt-1 line-clamp-1" title="${task.description}">${task.description}</p>
                                 </div>
                             </div>
-                            <div class="flex items-center space-x-1 ml-2">
+                            <div class="flex items-center space-x-3 ml-2">
                                 <span class="text-xs text-textSecondary whitespace-nowrap">
                                     ${formatDuration(task.plannedDuration)}${task.actualDuration > 0 ? ` / ${formatDuration(task.actualDuration)}` : ''}
+                                </span>
+                                <span class="text-xs text-amber-500 whitespace-nowrap flex items-center">
+                                    <i class="fa fa-coins mr-1"></i>${task.coins || 0}
                                 </span>
                                 <div class="relative">
                                     <button class="task-menu-btn p-1.5 rounded-full hover:bg-gray-100 transition-colors" data-task-id="${task.id}">
@@ -2231,6 +2297,9 @@ function enhancedInitApp() {
     // 添加事件监听器
     setupEventListeners();
     setupSubjectFilterListeners();
+    
+    // 更新金币显示
+    updateCoinsDisplay();
 }
 
 // 番茄钟相关函数
@@ -2357,6 +2426,9 @@ function completeTaskFromPomodoro() {
     if (currentPomodoroTaskId) {
         const task = tasks.find(t => t.id === currentPomodoroTaskId);
         if (task) {
+            // 如果任务之前不是已完成状态，才增加金币
+            const wasCompleted = task.status === 'completed';
+            
             // 标记任务为已完成
             task.status = 'completed';
             
@@ -2372,6 +2444,16 @@ function completeTaskFromPomodoro() {
             
             // 清除开始时间标记
             delete task.pomodoroStartTime;
+            
+            // 如果任务之前不是已完成状态，增加金币
+            if (!wasCompleted) {
+                const taskCoins = task.coins || 0;
+                const currentCoins = getUserCoins();
+                saveUserCoins(currentCoins + taskCoins);
+                updateCoinsDisplay();
+                // 显示获得金币的提示
+                showNotification(`获得 ${taskCoins} 个金币！`, 'success');
+            }
             
             // 保存数据
             saveData();

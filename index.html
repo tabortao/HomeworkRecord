@@ -82,40 +82,45 @@
     </header>
 
     <!-- 主内容区域 - 计划打卡页面 -->
-    <div id="calendar-page" class="container mx-auto px-4 py-5 pb-20">
+    <div id="calendar-page" class="container mx-auto px-4 py-3 pb-20">
         <!-- 顶部数据统计 -->
-        <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-white rounded-xl shadow-card p-4 flex flex-col items-center justify-center">
-                <div class="text-primary text-2xl mb-2"><i class="fa fa-book"></i></div>
-                <p class="text-textSecondary text-sm">今日学习时间</p>
-                <p id="studyTime" class="text-xl font-bold">01:30</p>
+        <section class="grid grid-cols-5 gap-2 mb-4">
+            <div class="bg-white rounded-lg shadow-sm p-2 flex flex-col items-center justify-center">
+                <div class="text-primary text-xl mb-1"><i class="fa fa-book"></i></div>
+                <p class="text-textSecondary text-xs">今日学习</p>
+                <p id="studyTime" class="text-lg font-bold">01:30</p>
             </div>
-            <div class="bg-white rounded-xl shadow-card p-4 flex flex-col items-center justify-center">
-                <div class="text-accent text-2xl mb-2"><i class="fa fa-heartbeat"></i></div>
-                <p class="text-textSecondary text-sm">运动户外时间</p>
-                <p id="exerciseTime" class="text-xl font-bold">00:45</p>
+            <div class="bg-white rounded-lg shadow-sm p-3 flex flex-col items-center justify-center">
+                <div class="text-accent text-xl mb-1"><i class="fa fa-heartbeat"></i></div>
+                <p class="text-textSecondary text-xs">运动户外</p>
+                <p id="exerciseTime" class="text-lg font-bold">00:45</p>
             </div>
-            <div class="bg-white rounded-xl shadow-card p-4 flex flex-col items-center justify-center">
-                <div class="text-secondary text-2xl mb-2"><i class="fa fa-tasks"></i></div>
-                <p class="text-textSecondary text-sm">今日任务数量</p>
-                <p id="taskCount" class="text-xl font-bold">8</p>
+            <div class="bg-white rounded-lg shadow-sm p-3 flex flex-col items-center justify-center">
+                <div class="text-secondary text-xl mb-1"><i class="fa fa-tasks"></i></div>
+                <p class="text-textSecondary text-xs">任务数量</p>
+                <p id="taskCount" class="text-lg font-bold">8</p>
             </div>
-            <div class="bg-white rounded-xl shadow-card p-4 flex flex-col items-center justify-center">
-                <div class="text-dark text-2xl mb-2"><i class="fa fa-trophy"></i></div>
-                <p class="text-textSecondary text-sm">今日完成率</p>
-                <p id="completionRate" class="text-xl font-bold">62%</p>
+            <div class="bg-white rounded-lg shadow-sm p-3 flex flex-col items-center justify-center">
+                <div class="text-dark text-xl mb-1"><i class="fa fa-trophy"></i></div>
+                <p class="text-textSecondary text-xs">完成率</p>
+                <p id="completionRate" class="text-lg font-bold">62%</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-3 flex flex-col items-center justify-center">
+                <div class="text-amber-500 text-xl mb-1"><i class="fa fa-money"></i></div>
+                <p class="text-textSecondary text-xs">金币</p>
+                <p id="totalCoins" class="text-lg font-bold">0</p>
             </div>
         </section>
 
         <!-- 日历导航 -->
-        <section class="bg-white rounded-xl shadow-card p-4 mb-6">
-            <div class="flex items-center justify-between mb-4">
+        <section class="bg-white rounded-xl shadow-card p-3 mb-4">
+            <div class="flex items-center justify-between mb-3">
                 <button id="prevWeekBtn" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
                     <i class="fa fa-chevron-left text-textSecondary"></i>
                 </button>
-                <h2 id="currentWeek" class="text-lg font-semibold">2025年10月第41周</h2>
+                <h2 id="currentWeek" class="text-base font-medium">2025年10月第41周</h2>
                 <div class="flex space-x-2">
-                    <button id="todayBtn" class="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium hover:bg-primary/20 transition-colors">
+                    <button id="todayBtn" class="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium hover:bg-primary/20 transition-colors">
                         本周
                     </button>
                     <button id="nextWeekBtn" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
@@ -142,44 +147,44 @@
         </section>
 
         <!-- 学科任务管理 -->
-        <section class="mb-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold">今日任务</h2>
+        <section class="mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-medium">今日任务</h2>
                 <div class="flex space-x-2">
-                    <button id="filterAllBtn" class="px-3 py-1 bg-primary text-white rounded-full text-sm font-medium">全部</button>
-                    <button id="filterCompletedBtn" class="px-3 py-1 bg-white text-textSecondary rounded-full text-sm font-medium hover:bg-gray-100 transition-colors">已完成</button>
-                    <button id="filterPendingBtn" class="px-3 py-1 bg-white text-textSecondary rounded-full text-sm font-medium hover:bg-gray-100 transition-colors">待完成</button>
+                    <button id="filterAllBtn" class="px-2 py-0.5 bg-primary text-white rounded-full text-xs font-medium">全部</button>
+                    <button id="filterCompletedBtn" class="px-2 py-0.5 bg-white text-textSecondary rounded-full text-xs font-medium hover:bg-gray-100 transition-colors">已完成</button>
+                    <button id="filterPendingBtn" class="px-2 py-0.5 bg-white text-textSecondary rounded-full text-xs font-medium hover:bg-gray-100 transition-colors">待完成</button>
                 </div>
             </div>
 
             <!-- 学科分类标签 -->
-            <div class="flex overflow-x-auto scrollbar-hide space-x-2 mb-4 pb-2">
-                <button class="px-4 py-2 bg-primary text-white rounded-full text-sm font-medium whitespace-nowrap">全部学科</button>
-                <button class="px-4 py-2 bg-white text-textPrimary rounded-full text-sm font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">语文</button>
-                <button class="px-4 py-2 bg-white text-textPrimary rounded-full text-sm font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">数学</button>
-                <button class="px-4 py-2 bg-white text-textPrimary rounded-full text-sm font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">英语</button>
-                <button class="px-4 py-2 bg-white text-textPrimary rounded-full text-sm font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">科学</button>
-                <button class="px-4 py-2 bg-white text-textPrimary rounded-full text-sm font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">美术</button>
-                <button class="px-4 py-2 bg-white text-textPrimary rounded-full text-sm font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">音乐</button>
+            <div class="flex overflow-x-auto scrollbar-hide space-x-1.5 mb-3 pb-1.5">
+                <button class="px-3 py-1.5 bg-primary text-white rounded-full text-xs font-medium whitespace-nowrap">全部学科</button>
+                <button class="px-3 py-1.5 bg-white text-textPrimary rounded-full text-xs font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">语文</button>
+                <button class="px-3 py-1.5 bg-white text-textPrimary rounded-full text-xs font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">数学</button>
+                <button class="px-3 py-1.5 bg-white text-textPrimary rounded-full text-xs font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">英语</button>
+                <button class="px-3 py-1.5 bg-white text-textPrimary rounded-full text-xs font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">科学</button>
+                <button class="px-3 py-1.5 bg-white text-textPrimary rounded-full text-xs font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">美术</button>
+                <button class="px-3 py-1.5 bg-white text-textPrimary rounded-full text-xs font-medium whitespace-nowrap hover:bg-gray-100 transition-colors">音乐</button>
             </div>
 
             <!-- 任务列表 -->
-            <div id="taskList" class="space-y-4">
+            <div id="taskList" class="space-y-3">
                 <!-- 任务卡片将通过JavaScript动态生成 -->
             </div>
         </section>
 
         <!-- 统计图表汇总 -->
-        <section class="bg-white rounded-xl shadow-card p-4 mb-6">
+        <section class="bg-white rounded-xl shadow-card p-3 mb-4">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold">本周学习统计</h2>
-                <select id="chartTypeSelector" class="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-textPrimary focus:outline-none focus:ring-2 focus:ring-primary/30">
+                <h2 class="text-base font-medium">本周学习统计</h2>
+                <select id="chartTypeSelector" class="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs text-textPrimary focus:outline-none focus:ring-2 focus:ring-primary/30">
                     <option value="time">学习时长</option>
                     <option value="completion">完成率</option>
                     <option value="subjects">学科分布</option>
                 </select>
             </div>
-            <div class="w-full h-64">
+            <div class="w-full h-56">
                 <canvas id="statsChart"></canvas>
             </div>
         </section>
@@ -188,91 +193,91 @@
     </div>
 
     <!-- 主内容区域 - 学科页面 -->
-    <div id="subjects-page" class="container mx-auto px-4 py-5 pb-20 hidden">
-        <header class="mb-8">
-            <h1 class="text-2xl font-bold text-textPrimary">学科学习管理</h1>
-            <p class="text-textSecondary text-sm mt-1">管理各学科的学习任务和查看学习统计</p>
+    <div id="subjects-page" class="container mx-auto px-4 py-3 pb-20 hidden">
+        <header class="mb-4">
+            <h1 class="text-xl font-bold text-textPrimary">学科学习管理</h1>
+            <p class="text-textSecondary text-xs mt-1">管理各学科的学习任务和查看学习统计</p>
         </header>
 
         <!-- 学科列表 -->
-        <section class="mb-8">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold">我的学科</h2>
-                <button id="addSubjectBtn" class="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+        <section class="mb-6">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-semibold">我的学科</h2>
+                <button id="addSubjectBtn" class="px-3 py-1.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button text-sm">
                     <i class="fa fa-plus mr-1"></i> 添加学科
                 </button>
             </div>
-            <div id="subjectList" class="grid grid-cols-2 gap-4">
+            <div id="subjectList" class="grid grid-cols-2 gap-3">
                 <!-- 学科卡片将通过JavaScript动态生成 -->
             </div>
         </section>
 
         <!-- 各学科完成情况统计 -->
-        <section class="mb-8">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold">学科完成情况</h2>
+        <section class="mb-6">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-semibold">学科完成情况</h2>
             </div>
-            <div class="bg-white rounded-xl shadow-card p-4">
-                <canvas id="subjectStatsChart" height="250"></canvas>
+            <div class="bg-white rounded-xl shadow-card p-3">
+                <canvas id="subjectStatsChart" height="200"></canvas>
             </div>
         </section>
     </div>
 
     <!-- 主内容区域 - 我的页面 -->
-    <div id="profile-page" class="container mx-auto px-4 py-5 pb-20 hidden">
-        <header class="mb-8">
-            <h1 class="text-2xl font-bold text-textPrimary">个人中心</h1>
+    <div id="profile-page" class="container mx-auto px-4 py-3 pb-20 hidden">
+        <header class="mb-4">
+            <h1 class="text-xl font-bold text-textPrimary">个人中心</h1>
         </header>
         
         <!-- 用户管理 -->
-        <section class="mb-8">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold">用户管理</h2>
-                <button id="addUserBtn" class="px-4 py-1.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors text-sm shadow-button">
+        <section class="mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-semibold">用户管理</h2>
+                <button id="addUserBtn" class="px-3 py-1 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors text-xs shadow-button">
                     <i class="fa fa-plus mr-1"></i> 添加用户
                 </button>
             </div>
             
-            <div class="bg-white rounded-xl shadow-card p-4 mb-4">
-                <div id="usersList" class="space-y-3">
+            <div class="bg-white rounded-xl shadow-card p-3 mb-3">
+                <div id="usersList" class="space-y-2">
                     <!-- 用户列表将通过JavaScript动态生成 -->
                 </div>
             </div>
         </section>
         
         <!-- 个人信息 -->
-        <section class="bg-white rounded-xl shadow-card p-6 mb-6">
+        <section class="bg-white rounded-xl shadow-card p-4 mb-4">
             <div id="currentUserInfo">
                 <!-- 当前用户信息将通过JavaScript动态生成 -->
             </div>
         </section>
         
         <!-- 编辑个人信息表单 (初始隐藏) -->
-        <section id="editUserFormSection" class="bg-white rounded-xl shadow-card p-6 mb-6 hidden">
-            <h2 class="text-lg font-semibold mb-4">编辑个人信息</h2>
+        <section id="editUserFormSection" class="bg-white rounded-xl shadow-card p-4 mb-4 hidden">
+            <h2 class="text-base font-semibold mb-3">编辑个人信息</h2>
             <form id="editUserForm">
-                <div class="space-y-4">
+                <div class="space-y-3">
                     <div>
-                        <label class="block text-sm font-medium text-textSecondary mb-1">用户名</label>
-                        <input type="text" id="editUserName" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入用户名">
+                        <label class="block text-xs font-medium text-textSecondary mb-1">用户名</label>
+                        <input type="text" id="editUserName" class="w-full px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入用户名">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-textSecondary mb-1">用户头像</label>
-                        <div class="grid grid-cols-6 gap-2 mt-2" id="avatarOptions">
+                        <label class="block text-xs font-medium text-textSecondary mb-1">用户头像</label>
+                        <div class="grid grid-cols-6 gap-1.5 mt-1.5" id="avatarOptions">
                             <!-- 头像选项将通过JavaScript动态生成 -->
                         </div>
                         <input type="hidden" id="editUserAvatar" value="👨‍🎓">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-textSecondary mb-1">用户年级</label>
-                        <input type="text" id="editUserGrade" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入年级">
+                        <label class="block text-xs font-medium text-textSecondary mb-1">用户年级</label>
+                        <input type="text" id="editUserGrade" class="w-full px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入年级">
                     </div>
                 </div>
-                <div class="mt-6 flex space-x-3">
-                    <button type="button" id="cancelEditUserBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                <div class="mt-4 flex space-x-2">
+                    <button type="button" id="cancelEditUserBtn" class="flex-1 px-3 py-2 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm">
                         取消
                     </button>
-                    <button type="submit" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button">
+                    <button type="submit" class="flex-1 px-3 py-2 bg-primary text-white rounded-lg font-medium hover:bg-dark transition-colors shadow-button text-sm">
                         保存
                     </button>
                 </div>
@@ -280,53 +285,53 @@
         </section>
         
         <!-- 数据管理 -->
-        <section class="bg-white rounded-xl shadow-card p-6 mb-6">
-            <h2 class="text-lg font-semibold mb-4">数据管理</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button id="exportDataBtn" class="px-4 py-3 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors">
-                    <i class="fa fa-download mr-2"></i> 导出用户数据
+        <section class="bg-white rounded-xl shadow-card p-4 mb-4">
+            <h2 class="text-base font-semibold mb-3">数据管理</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button id="exportDataBtn" class="px-3 py-2 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors text-sm">
+                    <i class="fa fa-download mr-1"></i> 导出数据
                 </button>
-                <button id="importDataBtn" class="px-4 py-3 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors">
-                    <i class="fa fa-upload mr-2"></i> 导入用户数据
+                <button id="importDataBtn" class="px-3 py-2 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors text-sm">
+                    <i class="fa fa-upload mr-1"></i> 导入数据
                 </button>
             </div>
-            <div class="mt-4">
-                <button id="clearUserDataBtn" class="w-full px-4 py-3 bg-red-100 text-red-600 rounded-lg font-medium hover:bg-red-200 transition-colors">
-                    <i class="fa fa-trash mr-2"></i> 清除当前用户数据
+            <div class="mt-3">
+                <button id="clearUserDataBtn" class="w-full px-3 py-2 bg-red-100 text-red-600 rounded-lg font-medium hover:bg-red-200 transition-colors text-sm">
+                    <i class="fa fa-trash mr-1"></i> 清除数据
                 </button>
             </div>
             <input type="file" id="dataFileInput" accept=".json" class="hidden">
         </section>
         
         <!-- 荣誉墙 -->
-        <section class="mb-8">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold">我的荣誉</h2>
+        <section class="mb-6">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-semibold">我的荣誉</h2>
                 <div class="flex space-x-2">
-                    <button id="prevHonorMonthBtn" class="text-primary">
+                    <button id="prevHonorMonthBtn" class="text-primary text-sm">
                         <i class="fa fa-chevron-left"></i>
                     </button>
-                    <button id="nextHonorMonthBtn" class="text-primary">
+                    <button id="nextHonorMonthBtn" class="text-primary text-sm">
                         <i class="fa fa-chevron-right"></i>
                     </button>
                 </div>
             </div>
-            <div id="currentHonorMonth" class="text-lg font-medium text-center mb-6">2024年6月</div>
+            <div id="currentHonorMonth" class="text-base font-medium text-center mb-4">2024年6月</div>
             
             <!-- 按月荣誉容器 -->
-            <div id="honorsByMonth" class="space-y-6">
+            <div id="honorsByMonth" class="space-y-4">
                 <!-- 已获得荣誉 -->
-                <div class="bg-white rounded-xl shadow-card p-4">
-                    <h3 class="text-base font-medium mb-4">已获得荣誉</h3>
-                    <div id="earnedHonors" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <div class="bg-white rounded-xl shadow-card p-3">
+                    <h3 class="text-sm font-medium mb-3">已获得荣誉</h3>
+                    <div id="earnedHonors" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                         <!-- 荣誉将通过JavaScript动态生成 -->
                     </div>
                 </div>
                 
                 <!-- 未获得荣誉 -->
-                <div class="bg-white rounded-xl shadow-card p-4">
-                    <h3 class="text-base font-medium mb-4">待解锁荣誉</h3>
-                    <div id="unearnedHonors" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <div class="bg-white rounded-xl shadow-card p-3">
+                    <h3 class="text-sm font-medium mb-3">待解锁荣誉</h3>
+                    <div id="unearnedHonors" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                         <!-- 未获得的荣誉将通过JavaScript动态生成 -->
                     </div>
                 </div>
@@ -353,7 +358,7 @@
     </nav>
 
     <!-- 浮动添加按钮 -->
-    <button id="addTaskBtn" class="fixed bottom-20 right-5 w-14 h-14 bg-primary rounded-full shadow-button flex items-center justify-center text-white text-2xl hover:bg-dark transition-all transform hover:scale-105">
+    <button id="addTaskBtn" class="fixed bottom-20 right-5 w-12 h-12 bg-primary rounded-full shadow-button flex items-center justify-center text-white text-xl hover:bg-dark transition-all transform hover:scale-105">
         <i class="fa fa-plus"></i>
     </button>
 
@@ -486,6 +491,15 @@
                     <div>
                         <label class="block text-sm font-medium text-textSecondary mb-1">计划时长 (分钟)</label>
                         <input type="number" id="taskDuration" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入计划时长" min="1" max="300">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-textSecondary mb-1">奖励金币</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-textSecondary">
+                                <i class="fa fa-coins text-amber-500"></i>
+                            </span>
+                            <input type="number" id="taskCoins" class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="请输入奖励金币数" max="100">
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-textSecondary mb-1">任务描述</label>
