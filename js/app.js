@@ -116,8 +116,11 @@ let subjectChart = null;
 
 // 显示小心愿兑换记录
 function showWishRedemptionRecords() {
+    // 确保只使用当前用户的操作记录
+    const currentUserActivityLogs = JSON.parse(localStorage.getItem(`activityLogs_${currentUserId}`) || '[]');
+    
     // 过滤出与小心愿兑换相关的记录
-    const wishRecords = activityLogs.filter(log => 
+    const wishRecords = currentUserActivityLogs.filter(log => 
         log.actionType === 'wish_redeem' || 
         (log.actionType === 'wish_update' && log.description.includes('兑换'))
     );
@@ -322,26 +325,66 @@ function loadData() {
     if (savedWishes) {
         wishes = JSON.parse(savedWishes);
     } else {
-        // 创建默认的小心愿示例数据
+        // 创建默认的小心愿示例数据（6个默认小心愿：看电视、零花钱、玩平板、玩手机、玩游戏、自由活动）
         wishes = [
             {
                 id: Date.now() + 1,
                 name: '看电视',
-                content: '完成学习任务后可以看喜欢的动画片',
+                content: '完成学习任务后可以看10分钟动画片',
                 icon: '',
                 iconType: 'emoji',
                 iconEmoji: '📺',
-                cost: 10,
+                cost: 1,
+                status: 'available'
+            },
+            {
+                id: Date.now() + 5,
+                name: '零花钱',
+                content: '累计完成一周任务可兑换零花钱',
+                icon: '',
+                iconType: 'emoji',
+                iconEmoji: '💰',
+                cost: 1,
+                status: 'available'
+            },
+            {
+                id: Date.now() + 3,
+                name: '玩平板',
+                content: '学习进步可以兑换10分钟平板使用时间',
+                icon: '',
+                iconType: 'emoji',
+                iconEmoji: '💻',
+                cost: 1,
+                status: 'available'
+            },
+            {
+                id: Date.now() + 6,
+                name: '玩手机',
+                content: '表现良好可以兑换10分钟手机使用时间',
+                icon: '',
+                iconType: 'emoji',
+                iconEmoji: '📱',
+                cost: 1,
                 status: 'available'
             },
             {
                 id: Date.now() + 2,
                 name: '玩游戏',
-                content: '周末可以玩30分钟电脑游戏',
+                content: '周末可以玩20分钟游戏',
                 icon: '',
                 iconType: 'emoji',
                 iconEmoji: '🎮',
-                cost: 15,
+                cost: 1,
+                status: 'available'
+            },
+            {
+                id: Date.now() + 4,
+                name: '自由活动',
+                content: '完成所有作业后可以兑换30分钟自由支配时间',
+                icon: '',
+                iconType: 'emoji',
+                iconEmoji: '🏃',
+                cost: 1,
                 status: 'available'
             }
         ];
@@ -781,7 +824,7 @@ function showConfirmDialog(message, title = '确认操作') {
 // 删除用户
 function deleteUser(userId) {
     withPasswordVerification('删除用户需要验证密码', () => {
-        // 显示确认对话框
+        // 显示确认对话框（不需要再次密码验证）
         showConfirmDialog('确定要删除此用户吗？此操作无法撤销！').then(function(confirmed) {
             if (confirmed) {
                 try {
@@ -3623,22 +3666,17 @@ if (window.deleteWish) {
 
 // 为小心愿编辑和添加函数添加操作记录（需要在实际的函数中添加）
 
-// 为用户删除函数添加操作记录
+// 为用户删除函数添加操作记录（保留一次密码验证）
 const originalDeleteUser = deleteUser;
 deleteUser = function(userId) {
     const userToDelete = users.find(u => u.id === userId);
-    return withPasswordVerification('删除用户需要验证密码', () => {
-        return showConfirmDialog('确定要删除此用户吗？此操作无法撤销！').then(function(confirmed) {
-            if (confirmed) {
-                const result = originalDeleteUser.apply(this, [userId]);
-                if (userToDelete) {
-                    addActivityLog('user_delete', `删除了用户「${userToDelete.name}」`);
-                }
-                return result;
-            }
-            return false;
-        });
-    });
+    // 直接调用原始函数，因为原始函数已经包含密码验证
+    const result = originalDeleteUser.apply(this, [userId]);
+    // 添加操作记录
+    if (userToDelete) {
+        addActivityLog('user_delete', `删除了用户「${userToDelete.name}」`);
+    }
+    return result;
 };
 
 // 为数据清除函数添加操作记录
