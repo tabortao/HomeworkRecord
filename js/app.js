@@ -1050,13 +1050,8 @@ function setupEventListeners() {
                         localStorage.setItem(`subjectColors_${currentUserId}`, JSON.stringify({}));
                         
                         // 重置当前用户的荣誉数据
-                        const honorData = getHonorData();
-                        const currentMonth = new Date().toISOString().slice(0, 7);
-                        // 清空当月的荣誉记录
-                        if (honorData.earnedHonors[currentMonth]) {
-                            honorData.earnedHonors[currentMonth] = {};
-                        }
-                        saveHonorData(honorData);
+                        // 完全清除所有荣誉数据
+                        localStorage.removeItem('timeManagementHonors');
                         
                         showNotification('用户数据已成功清除', 'success');
                         
@@ -2068,28 +2063,16 @@ function checkAndUpdateHonors() {
         honorData.earnedHonors[currentMonth] = {};
     }
     
-    // 模拟一些荣誉获取逻辑
-    // 在实际应用中，这些应该根据用户的真实行为来判断
-    
-    // 检查连续打卡天数
-    const today = new Date().toISOString().split('T')[0];
-    let consecutiveDays = 0;
-    
-    // 简单模拟连续打卡7天的情况
-    if (!honorData.earnedHonors[currentMonth]['continuous-7']) {
-        consecutiveDays = 7; // 这里应该实际计算连续打卡天数
-        if (consecutiveDays >= 7) {
-            honorData.earnedHonors[currentMonth]['continuous-7'] = 1;
-        }
+    // 仅在有用户任务数据时才检查荣誉
+    // 避免在数据清空后自动生成模拟荣誉
+    const tasks = getUserTasks();
+    if (tasks && tasks.length > 0) {
+        // 检查连续打卡天数（此处为简化示例，实际应根据真实数据计算）
+        // const today = new Date().toISOString().split('T')[0];
+        // let consecutiveDays = calculateConsecutiveDays(tasks);
+        
+        // 这里不再自动模拟添加荣誉，而是等待用户实际完成任务后再授予
     }
-    
-    // 模拟其他一些已获得的荣誉
-    const earnedHonors = ['study-master', 'reading-star', 'wisdom-star'];
-    earnedHonors.forEach(honorId => {
-        if (!honorData.earnedHonors[currentMonth][honorId]) {
-            honorData.earnedHonors[currentMonth][honorId] = 1;
-        }
-    });
     
     saveHonorData(honorData);
 }
