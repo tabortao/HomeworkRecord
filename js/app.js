@@ -1262,14 +1262,13 @@ function setupEventListeners() {
     
     // 包装需要密码验证的函数
     window.withPasswordVerification = async function(message, action) {
-        // 如果用户没有设置密码，则直接执行操作
-        if (!currentUser.password) {
-            return action();
-        }
-        
+        // 即使用户没有设置密码，也需要验证（可以留空密码提交）
         try {
-            await showPasswordDialog(message);
-            return action();
+            const isVerified = await showPasswordDialog(message);
+            if (isVerified) {
+                return action();
+            }
+            return null;
         } catch (error) {
             // 用户取消操作
             return null;
@@ -2033,39 +2032,43 @@ function updateWishesCoinsDisplay() {
 
 // 打开添加小心愿模态框
 function openAddWishModal() {
-    currentWishId = null;
-    wishModalTitleEl.textContent = '添加小心愿';
-    wishFormEl.reset();
-    // 重置图标预览
-    wishIconPreviewEl.innerHTML = '<i class="fa fa-gift text-blue-500"></i>';
-    
-    wishModalEl.classList.remove('hidden');
-    wishNameEl.focus();
+    withPasswordVerification('添加心愿需要验证密码', () => {
+        currentWishId = null;
+        wishModalTitleEl.textContent = '添加小心愿';
+        wishFormEl.reset();
+        // 重置图标预览
+        wishIconPreviewEl.innerHTML = '<i class="fa fa-gift text-blue-500"></i>';
+        
+        wishModalEl.classList.remove('hidden');
+        wishNameEl.focus();
+    });
 }
 
 // 打开编辑小心愿模态框
 function openEditWishModal(wishId) {
-    const wish = wishes.find(w => w.id === wishId);
-    if (!wish) return;
-    
-    currentWishId = wishId;
-    wishModalTitleEl.textContent = '编辑小心愿';
-    
-    // 填充表单数据
-    wishNameEl.value = wish.name;
-    wishContentEl.value = wish.content;
-    wishCostEl.value = wish.cost;
-    
-    // 更新图标预览
-    if (wish.iconType === 'image' && wish.icon) {
-        wishIconPreviewEl.innerHTML = `<img src="${wish.icon}" alt="${wish.name}" class="w-full h-full object-cover rounded-xl">`;
-    } else if (wish.iconType === 'emoji' && wish.iconEmoji) {
-        wishIconPreviewEl.textContent = wish.iconEmoji;
-    } else {
-        wishIconPreviewEl.innerHTML = '<i class="fa fa-gift text-blue-500"></i>';
-    }
-    
-    wishModalEl.classList.remove('hidden');
+    withPasswordVerification('编辑心愿需要验证密码', () => {
+        const wish = wishes.find(w => w.id === wishId);
+        if (!wish) return;
+        
+        currentWishId = wishId;
+        wishModalTitleEl.textContent = '编辑小心愿';
+        
+        // 填充表单数据
+        wishNameEl.value = wish.name;
+        wishContentEl.value = wish.content;
+        wishCostEl.value = wish.cost;
+        
+        // 更新图标预览
+        if (wish.iconType === 'image' && wish.icon) {
+            wishIconPreviewEl.innerHTML = `<img src="${wish.icon}" alt="${wish.name}" class="w-full h-full object-cover rounded-xl">`;
+        } else if (wish.iconType === 'emoji' && wish.iconEmoji) {
+            wishIconPreviewEl.textContent = wish.iconEmoji;
+        } else {
+            wishIconPreviewEl.innerHTML = '<i class="fa fa-gift text-blue-500"></i>';
+        }
+        
+        wishModalEl.classList.remove('hidden');
+    });
 }
 
 // 关闭小心愿模态框
@@ -2121,29 +2124,37 @@ function handleWishFormSubmit(e) {
         status: 'available'
     };
     
-    // 检查是否有上传的图片
-    if (wishIconUploadEl.files.length > 0) {
-        const file = wishIconUploadEl.files[0];
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            wishData.icon = e.target.result;
-            wishData.iconType = 'image';
-            saveWish(wishData);
-        };
-        reader.readAsDataURL(file);
-    } else {
-        // 如果没有上传图片，检查是否是已有的emoji图标
-        const currentWish = wishes.find(w => w.id === currentWishId);
-        if (currentWish && currentWish.iconType === 'emoji') {
-            wishData.iconType = 'emoji';
-            wishData.iconEmoji = currentWish.iconEmoji;
+    // 添加密码验证
+    return withPasswordVerification(currentWishId ? '编辑心愿需要验证密码' : '添加心愿需要验证密码', () => {
+        // 检查是否有上传的图片
+        if (wishIconUploadEl.files.length > 0) {
+            const file = wishIconUploadEl.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                wishData.icon = e.target.result;
+                wishData.iconType = 'image';
+                saveWish(wishData);
+                // 添加操作记录
+                addActivityLog(currentWishId ? 'wish_edit' : 'wish_add', currentWishId ? `编辑了心愿「${wishData.name}」` : `添加了心愿「${wishData.name}」`);
+            };
+            reader.readAsDataURL(file);
         } else {
-            // 默认使用emoji
-            wishData.iconType = 'emoji';
-            wishData.iconEmoji = '🎁';
+            // 如果没有上传图片，检查是否是已有的emoji图标
+            const currentWish = wishes.find(w => w.id === currentWishId);
+            if (currentWish && currentWish.iconType === 'emoji') {
+                wishData.iconType = 'emoji';
+                wishData.iconEmoji = currentWish.iconEmoji;
+            } else {
+                // 默认使用emoji
+                wishData.iconType = 'emoji';
+                wishData.iconEmoji = '🎁';
+            }
+            saveWish(wishData);
+            // 添加操作记录
+            addActivityLog(currentWishId ? 'wish_edit' : 'wish_add', currentWishId ? `编辑了心愿「${wishData.name}」` : `添加了心愿「${wishData.name}」`);
         }
-        saveWish(wishData);
-    }
+        return true;
+    });
 }
 
 // 保存小心愿
@@ -2176,19 +2187,22 @@ function saveWish(wishData) {
 
 // 删除小心愿
 function deleteWish(wishId) {
-    showConfirmDialog('确定要删除这个小心愿吗？').then(confirmed => {
-        if (confirmed) {
-            wishes = wishes.filter(w => w.id !== wishId);
-            saveWishes();
-            renderWishesList();
-            showNotification('小心愿已删除', 'success');
-        }
+    return withPasswordVerification('删除心愿需要验证密码', () => {
+        return showConfirmDialog('确定要删除这个小心愿吗？').then(confirmed => {
+            if (confirmed) {
+                wishes = wishes.filter(w => w.id !== wishId);
+                saveWishes();
+                renderWishesList();
+                showNotification('小心愿已删除', 'success');
+            }
+            return confirmed;
+        });
     });
 }
 
 // 兑换小心愿
 function redeemWish(wishId) {
-    withPasswordVerification('心愿兑换需要验证密码', () => {
+    return withPasswordVerification('心愿兑换需要验证密码', () => {
         const wish = wishes.find(w => w.id === wishId);
         if (!wish) return;
         
@@ -3382,15 +3396,11 @@ if (window.deleteWish) {
     const originalDeleteWish = window.deleteWish;
     window.deleteWish = function(wishId) {
         const wishToDelete = wishes.find(w => w.id === wishId);
-        return showConfirmDialog('确定要删除这个小心愿吗？').then(confirmed => {
-            if (confirmed) {
-                const result = originalDeleteWish.apply(this, arguments);
-                if (wishToDelete) {
-                    addActivityLog('wish_delete', `删除了心愿「${wishToDelete.name}」`);
-                }
-                return result;
+        return originalDeleteWish(wishId).then(confirmed => {
+            if (confirmed && wishToDelete) {
+                addActivityLog('wish_delete', `删除了心愿「${wishToDelete.name}」`);
             }
-            return false;
+            return confirmed;
         });
     };
 }
