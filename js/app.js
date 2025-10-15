@@ -1618,24 +1618,26 @@ function updateSubjectSelect() {
 
 // 打开编辑任务模态框
 function openEditTaskModal(taskId) {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-    
-    currentTaskId = taskId;
-    modalTitleEl.textContent = '编辑任务';
-    document.getElementById('taskName').value = task.name;
-    document.getElementById('taskSubject').value = task.subject;
-    document.getElementById('taskDuration').value = task.plannedDuration;
-    document.getElementById('taskCoins').value = task.coins || 0;
-    document.getElementById('taskDescription').value = task.description;
-    
-    if (task.status === 'completed') {
-        document.querySelector('input[name="taskStatus"][value="completed"]').checked = true;
-    } else {
-        document.querySelector('input[name="taskStatus"][value="pending"]').checked = true;
-    }
-    
-    taskModalEl.classList.remove('hidden');
+    withPasswordVerification('编辑任务需要验证密码', () => {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+        
+        currentTaskId = taskId;
+        modalTitleEl.textContent = '编辑任务';
+        document.getElementById('taskName').value = task.name;
+        document.getElementById('taskSubject').value = task.subject;
+        document.getElementById('taskDuration').value = task.plannedDuration;
+        document.getElementById('taskCoins').value = task.coins || 0;
+        document.getElementById('taskDescription').value = task.description;
+        
+        if (task.status === 'completed') {
+            document.querySelector('input[name="taskStatus"][value="completed"]').checked = true;
+        } else {
+            document.querySelector('input[name="taskStatus"][value="pending"]').checked = true;
+        }
+        
+        taskModalEl.classList.remove('hidden');
+    });
 }
 
 // 关闭任务模态框
@@ -2336,35 +2338,55 @@ function toggleTaskStatus(taskId) {
     const task = tasks.find(t => t.id === taskId);
     if (task) {
         const wasCompleted = task.status === 'completed';
-        task.status = wasCompleted ? 'pending' : 'completed';
         
-        // 添加操作记录
-        addActivityLog('task_status_change', `将任务「${task.name}」${task.status === 'completed' ? '标记为已完成' : '标记为待完成'}`);
-        
-        if (task.status === 'completed' && task.actualDuration === 0) {
-            task.actualDuration = task.plannedDuration;
-        }
-        
-        // 更新金币数
-        const currentCoins = getUserCoins();
-        const taskCoins = task.coins || 0;
-        
-        if (!wasCompleted && task.status === 'completed') {
+        // 如果是从未完成变为已完成，直接执行
+        if (!wasCompleted) {
+            task.status = 'completed';
+            
+            // 添加操作记录
+            addActivityLog('task_status_change', `将任务「${task.name}」标记为已完成`);
+            
+            if (task.actualDuration === 0) {
+                task.actualDuration = task.plannedDuration;
+            }
+            
+            // 更新金币数
+            const currentCoins = getUserCoins();
+            const taskCoins = task.coins || 0;
+            
             // 完成任务，增加金币
             saveUserCoins(currentCoins + taskCoins);
             updateCoinsDisplay();
             // 显示获得金币的提示
             showNotification(`获得 ${taskCoins} 个金币！`, 'success');
-        } else if (wasCompleted && task.status === 'pending') {
-            // 取消完成，减少金币
-            manageUserCoins(Math.max(0, currentCoins - taskCoins));
+            
+            saveData();
+            renderTaskList();
+            updateStatistics();
             updateCoinsDisplay();
+        } else {
+            // 如果是从已完成变为未完成，需要密码验证
+            withPasswordVerification('将任务标记为未完成需要验证密码', () => {
+                task.status = 'pending';
+                
+                // 添加操作记录
+                addActivityLog('task_status_change', `将任务「${task.name}」标记为待完成`);
+                
+                // 更新金币数
+                const currentCoins = getUserCoins();
+                const taskCoins = task.coins || 0;
+                
+                // 取消完成，减少金币
+                const newCoins = Math.max(0, currentCoins - taskCoins);
+                saveUserCoins(newCoins);
+                updateCoinsDisplay();
+                
+                saveData();
+                renderTaskList();
+                updateStatistics();
+                updateCoinsDisplay();
+            });
         }
-        
-        saveData();
-        renderTaskList();
-        updateStatistics();
-        updateCoinsDisplay();
     }
 }
 
@@ -2433,7 +2455,7 @@ function renderTaskList(filter = 'all') {
                             </div>
                             <div class="flex items-center space-x-3 ml-2">
                                     <button class="text-primary p-1 rounded-full hover:bg-primary/10 transition-colors" onclick="openPomodoroModal(${task.id})" title="开始番茄钟">
-                                        <i class="fa fa-clock-o text-lg"></i>
+                                        <img src="static/images/番茄钟.png" alt="番茄钟" class="w-5 h-5">
                                     </button>
                                     <span class="text-xs text-textSecondary whitespace-nowrap">
                                         ${formatDuration(task.plannedDuration)}${task.actualDuration > 0 ? ` / ${formatDuration(task.actualDuration)}` : ''}
