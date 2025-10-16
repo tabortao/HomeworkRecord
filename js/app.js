@@ -235,7 +235,7 @@ function loadData() {
         users = [
             {
                 id: 'default-user',
-                name: '儿子',
+                name: '管理员',
                 avatar: '👨‍🎓',
                 grade: '幼儿园大班'
             }
@@ -269,54 +269,8 @@ function loadData() {
     if (savedTasks) {
         tasks = JSON.parse(savedTasks);
     } else {
-        // 使用模拟数据生成器创建示例数据
-        if (window.generateMockTasks) {
-            tasks = window.generateMockTasks();
-        } else {
-            // 如果模拟数据生成器不可用，使用默认示例数据
-            tasks = [
-                { 
-                    id: Date.now() + 1,
-                    name: '朗读课文3遍',
-                    subject: '语文',
-                    description: '朗读课文《秋天的雨》3遍，注意读音和语调',
-                    plannedDuration: 30,
-                    actualDuration: 25,
-                    status: 'completed',
-                    date: new Date().toISOString().split('T')[0]
-                },
-                { 
-                    id: Date.now() + 2,
-                    name: '完成数学练习',
-                    subject: '数学',
-                    description: '完成课本第56页的练习题，包括应用题和计算题',
-                    plannedDuration: 45,
-                    actualDuration: 0,
-                    status: 'pending',
-                    date: new Date().toISOString().split('T')[0]
-                },
-                { 
-                    id: Date.now() + 3,
-                    name: '背诵英语单词',
-                    subject: '英语',
-                    description: '背诵第7单元的15个单词，能够正确拼写',
-                    plannedDuration: 20,
-                    actualDuration: 22,
-                    status: 'completed',
-                    date: new Date().toISOString().split('T')[0]
-                },
-                { 
-                    id: Date.now() + 4,
-                    name: '科学实验记录',
-                    subject: '科学',
-                    description: '记录今天做的种子发芽实验观察结果',
-                    plannedDuration: 15,
-                    actualDuration: 0,
-                    status: 'pending',
-                    date: new Date().toISOString().split('T')[0]
-                }
-            ];
-        }
+        // 新用户不填充示例数据，使用空数组
+        tasks = [];
         saveData();
     }
     
@@ -1630,39 +1584,117 @@ function setupEventListeners() {
                 showConfirmDialog('确定要清除当前用户的所有数据吗？此操作不可恢复！').then(function(confirmed) {
                     if (confirmed) {
                         try {
-                            // 清除当前用户的任务数据 - 保存空数组而不是完全删除键，防止刷新后生成模拟数据
-                            localStorage.setItem(`timeManagementTasks_${currentUserId}`, JSON.stringify([]));
-                            
-                            // 清除当前用户的学科颜色数据 - 保存空对象而不是完全删除键
-                            localStorage.setItem(`subjectColors_${currentUserId}`, JSON.stringify({}));
-                            
-                            // 重置当前用户的荣誉数据
-                            // 完全清除所有荣誉数据
-                            localStorage.removeItem('timeManagementHonors');
-                            
-                            // 清除当前用户的小心愿数据
-                            localStorage.setItem(`timeManagementWishes_${currentUserId}`, JSON.stringify([]));
-                            
-                            // 清除当前用户的金币数据
-                            localStorage.setItem(`timeManagementCoins_${currentUserId}`, 0);
-                            
-                            showNotification('用户数据已成功清除', 'success');
-                            
-                            // 重新加载当前用户数据（将加载空数据）
-                            loadUserData();
-                            
-                            // 重新渲染当前页面的用户相关数据
-                            updateCurrentUserInfo();
-                            
-                            // 更新金币显示
-                            updateCoinsDisplay();
-                            updateWishesCoinsDisplay();
-                            
-                            // 如果当前显示的是荣誉墙，重新渲染荣誉墙
-                            if (document.getElementById('profile-page') && !document.getElementById('profile-page').classList.contains('hidden')) {
-                                renderHonorWall();
-                            }
-                        } catch (error) {
+                    // 清除当前用户的所有数据
+                    
+                    // 清除任务数据
+                    localStorage.setItem(`timeManagementTasks_${currentUserId}`, JSON.stringify([]));
+                    
+                    // 重置学科颜色为6个默认学科
+                    resetSubjectColorsToDefault();
+                    localStorage.setItem(`subjectColors_${currentUserId}`, JSON.stringify(SUBJECT_COLORS));
+                    
+                    // 清除荣誉数据
+                    localStorage.removeItem('timeManagementHonors');
+                    
+                    // 保留6个默认小愿望，清除其他自定义小愿望
+                    const defaultWishes = [
+                        {
+                            id: Date.now() + 1,
+                            name: '看电视',
+                            content: '完成学习任务后可以看10分钟动画片',
+                            icon: '',
+                            iconType: 'emoji',
+                            iconEmoji: '📺',
+                            cost: 1,
+                            status: 'available'
+                        },
+                        {
+                            id: Date.now() + 5,
+                            name: '零花钱',
+                            content: '累计完成一周任务可兑换零花钱',
+                            icon: '',
+                            iconType: 'emoji',
+                            iconEmoji: '💰',
+                            cost: 1,
+                            status: 'available'
+                        },
+                        {
+                            id: Date.now() + 3,
+                            name: '玩平板',
+                            content: '学习进步可以兑换10分钟平板使用时间',
+                            icon: '',
+                            iconType: 'emoji',
+                            iconEmoji: '💻',
+                            cost: 1,
+                            status: 'available'
+                        },
+                        {
+                            id: Date.now() + 6,
+                            name: '玩手机',
+                            content: '表现良好可以兑换10分钟手机使用时间',
+                            icon: '',
+                            iconType: 'emoji',
+                            iconEmoji: '📱',
+                            cost: 1,
+                            status: 'available'
+                        },
+                        {
+                            id: Date.now() + 2,
+                            name: '玩游戏',
+                            content: '周末可以玩20分钟游戏',
+                            icon: '',
+                            iconType: 'emoji',
+                            iconEmoji: '🎮',
+                            cost: 1,
+                            status: 'available'
+                        },
+                        {
+                            id: Date.now() + 4,
+                            name: '自由活动',
+                            content: '完成所有作业后可以兑换30分钟自由支配时间',
+                            icon: '',
+                            iconType: 'emoji',
+                            iconEmoji: '🏃',
+                            cost: 1,
+                            status: 'available'
+                        }
+                    ];
+                    localStorage.setItem(`timeManagementWishes_${currentUserId}`, JSON.stringify(defaultWishes));
+                    wishes = defaultWishes;
+                    
+                    // 清除金币数据
+                    localStorage.setItem(`timeManagementCoins_${currentUserId}`, 0);
+                    
+                    // 清除操作记录
+                    localStorage.setItem(`activityLogs_${currentUserId}`, JSON.stringify([]));
+                    
+                    showNotification('所有数据已成功清除', 'success');
+                    
+                    // 重置内存中的数据变量
+                    tasks = [];
+                    activityLogs = [];
+                    // wishes 保持为已设置的默认值
+                    
+                    // 重新渲染所有相关页面和组件
+                    updateCurrentUserInfo();
+                    renderTaskList();
+                    renderWishesList();
+                    displayActivityLogs();
+                    updateStatistics();
+                    renderStatsChart();
+                    renderSubjectList();
+                    renderSubjectStatsChart();
+                    updateSubjectSelect();
+                    updateCoinsDisplay();
+                    updateWishesCoinsDisplay();
+                    updateStatistics();
+                    renderStatsChart();
+                    
+                    // 如果当前显示的是荣誉墙，重新渲染荣誉墙
+                    if (document.getElementById('profile-page') && !document.getElementById('profile-page').classList.contains('hidden')) {
+                        renderHonorWall();
+                    }
+                } catch (error) {
                             showNotification('清除数据失败：' + error.message, 'error');
                         }
                     }
