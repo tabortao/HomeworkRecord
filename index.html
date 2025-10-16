@@ -9,6 +9,13 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/static/images/favicon/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/images/favicon/favicon-16x16.png">
     <link rel="manifest" href="/static/images/favicon/site.webmanifest">
+    <!-- PWA相关meta标签 -->
+    <meta name="description" content="帮助学生记录作业完成情况、学习时间和积分兑换心愿的应用">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="作业积分">
+    <link rel="apple-touch-startup-image" href="/static/images/favicon/apple-touch-icon.png">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome -->
@@ -811,5 +818,20 @@
     <!-- JavaScript 文件 -->
     <script src="js/mockData.js"></script>
     <script src="js/app.js"></script>
-</body>
+<!-- PWA Service Worker 注册 -->
+    <script>
+      // 检查浏览器是否支持Service Worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then(registration => {
+              console.log('Service Worker 注册成功，作用域为:', registration.scope);
+            })
+            .catch(error => {
+              console.error('Service Worker 注册失败:', error);
+            });
+        });
+      }
+    </script>
+    </body>
 </html>
