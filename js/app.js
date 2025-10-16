@@ -1909,7 +1909,7 @@ function renderSubjectList() {
                     <p class="text-base font-bold">${subjectTasks.length}</p>
                 </div>
                 <div class="bg-gray-50 p-2 rounded-lg">
-                    <p class="text-xs text-textSecondary">完成率</p>
+                    <p class="text-xs text-textSecondary">比例</p>
                     <p class="text-base font-bold ${completionRate === 100 ? 'text-green-500' : ''}">${completionRate}%</p>
                 </div>
                 <div class="bg-gray-50 p-2 rounded-lg">
