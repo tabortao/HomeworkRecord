@@ -1470,7 +1470,8 @@ function setupEventListeners() {
                     tasks: getUserTasks(user.id),
                     subjectColors: getUserSubjectColors(user.id),
                     coins: getUserCoinsByUserId(user.id),
-                    wishes: getUserWishesByUserId(user.id)
+                    wishes: getUserWishesByUserId(user.id),
+                    activityLogs: JSON.parse(localStorage.getItem(`activityLogs_${user.id}`) || '[]')
                 };
             });
             
@@ -1531,6 +1532,9 @@ function setupEventListeners() {
                             }
                             if (userData.wishes) {
                                 localStorage.setItem(`timeManagementWishes_${userId}`, JSON.stringify(userData.wishes));
+                            }
+                            if (userData.activityLogs) {
+                                localStorage.setItem(`activityLogs_${userId}`, JSON.stringify(userData.activityLogs));
                             }
                         });
                         
@@ -1668,12 +1672,18 @@ function setupEventListeners() {
                     // 清除操作记录
                     localStorage.setItem(`activityLogs_${currentUserId}`, JSON.stringify([]));
                     
-                    showNotification('所有数据已成功清除', 'success');
+                    showNotification('所有数据已成功清除，包括密码。您可以重新设置密码。', 'success');
                     
                     // 重置内存中的数据变量
                     tasks = [];
                     activityLogs = [];
                     // wishes 保持为已设置的默认值
+                    
+                    // 清除当前用户的密码
+                    if (currentUser) {
+                        currentUser.password = '';
+                        saveUsers();
+                    }
                     
                     // 重新渲染所有相关页面和组件
                     updateCurrentUserInfo();
