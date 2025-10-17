@@ -1821,6 +1821,8 @@ function openEditTaskModal(taskId) {
         }
         
         taskModalEl.classList.remove('hidden');
+        // 设置输入法适配
+        setupTaskModalInputAdaptation();
     });
 }
 
@@ -1828,6 +1830,40 @@ function openEditTaskModal(taskId) {
 function closeTaskModal() {
     taskModalEl.classList.add('hidden');
     currentTaskId = null;
+}
+
+// 任务弹窗输入法适配
+function setupTaskModalInputAdaptation() {
+    // 延迟初始化，确保DOM已加载完成
+    setTimeout(() => {
+        const formInputs = document.querySelectorAll('#taskForm input, #taskForm textarea, #taskForm select');
+        
+        // 确保弹窗在底部显示
+        if (taskModalEl) {
+            taskModalEl.style.alignItems = 'flex-end';
+        }
+        
+        // 监听输入框聚焦，防止被输入法遮挡
+        formInputs.forEach(input => {
+            input.addEventListener('focus', () => {
+                setTimeout(() => {
+                    // 确保弹窗在底部
+                    if (taskModalEl) {
+                        taskModalEl.style.alignItems = 'flex-end';
+                    }
+                    // 滚动到当前聚焦的输入框位置
+                    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 200);
+            });
+        });
+    }, 300);
+    
+    // 监听窗口大小变化，自适应调整
+    window.addEventListener('resize', () => {
+        if (taskModalEl && !taskModalEl.classList.contains('hidden')) {
+            taskModalEl.style.alignItems = 'flex-end';
+        }
+    });
 }
 
 // 页面切换函数
@@ -2039,6 +2075,8 @@ function openAddTaskModalWithSubject(subject) {
         document.getElementById('taskSubject').value = subject;
         taskModalEl.classList.remove('hidden');
         document.getElementById('taskName').focus();
+        // 设置输入法适配
+        setupTaskModalInputAdaptation();
     });
 }
 
