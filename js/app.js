@@ -1838,20 +1838,11 @@ function setupTaskModalInputAdaptation() {
     setTimeout(() => {
         const formInputs = document.querySelectorAll('#taskForm input, #taskForm textarea, #taskForm select');
         
-        // 确保弹窗在底部显示
-        if (taskModalEl) {
-            taskModalEl.style.alignItems = 'flex-end';
-        }
-        
-        // 监听输入框聚焦，防止被输入法遮挡
+        // 监听输入框聚焦，确保输入框可见
         formInputs.forEach(input => {
             input.addEventListener('focus', () => {
                 setTimeout(() => {
-                    // 确保弹窗在底部
-                    if (taskModalEl) {
-                        taskModalEl.style.alignItems = 'flex-end';
-                    }
-                    // 滚动到当前聚焦的输入框位置
+                    // 滚动到当前聚焦的输入框位置，确保可见
                     input.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 200);
             });
@@ -1860,8 +1851,9 @@ function setupTaskModalInputAdaptation() {
     
     // 监听窗口大小变化，自适应调整
     window.addEventListener('resize', () => {
+        // 移除可能存在的强制底部显示样式，保持居中
         if (taskModalEl && !taskModalEl.classList.contains('hidden')) {
-            taskModalEl.style.alignItems = 'flex-end';
+            taskModalEl.style.alignItems = 'center';
         }
     });
 }
