@@ -2297,7 +2297,9 @@ async function handleTaskFormSubmit(e) {
                     // 1) 更新属于 seriesId 的所有实例的元数据（但保留其 status/actualDuration）
                     tasks.forEach(t => {
                         if (t.seriesId && t.seriesId === seriesIdToUse) {
-                            // update metadata fields
+                            // 如果这是历史且已完成的实例，则保持不变（不修改历史已完成记录）
+                            if (t.date < todayStr && t.status === 'completed') return;
+                            // update metadata fields for other instances
                             t.name = taskName;
                             t.subject = taskSubject;
                             t.plannedDuration = baseTask.plannedDuration;
