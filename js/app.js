@@ -1865,32 +1865,12 @@ function openEditTaskModal(taskId) {
         }
         // 设置输入法适配
         setupTaskModalInputAdaptation();
-        // 显示系列信息和编辑范围选择（仅当属于某个 series 或为循环任务时）
+        // 隐藏系列信息与摘要（编辑模态中默认不显示系列信息）
         if (seriesInfoEl) {
-            if (task.seriesId || task.frequency !== 'once') {
-                seriesInfoEl.classList.remove('hidden');
-                if (seriesIdDisplay) seriesIdDisplay.textContent = task.seriesId || '(未分配)';
-                // 填充摘要：频次 / 起止
-                const freq = task.frequency || 'once';
-                const start = task.startDate || '-';
-                const end = task.endDate || '（无）';
-                const summaryEl = document.getElementById('seriesSummary');
-                if (summaryEl) {
-                    let freqLabel = '';
-                    switch (freq) {
-                        case 'daily': freqLabel = '每天'; break;
-                        case 'every_n_days': freqLabel = `每 ${task.nDays || 1} 天`; break;
-                        case 'weekly': freqLabel = `每周（${(task.weekdays || []).join(',') || '全部'}）`; break;
-                        default: freqLabel = '一次性';
-                    }
-                    summaryEl.textContent = `${freqLabel}，起：${start}，止：${end}`;
-                }
-            } else {
-                seriesInfoEl.classList.add('hidden');
-                if (seriesIdDisplay) seriesIdDisplay.textContent = '-';
-                const summaryEl = document.getElementById('seriesSummary');
-                if (summaryEl) summaryEl.textContent = '-';
-            }
+            seriesInfoEl.classList.add('hidden');
+            if (seriesIdDisplay) seriesIdDisplay.textContent = '-';
+            const summaryEl = document.getElementById('seriesSummary');
+            if (summaryEl) summaryEl.textContent = '-';
         }
     });
 }
@@ -2366,7 +2346,7 @@ async function handleTaskFormSubmit(e) {
                     });
                 } else {
                     // editScope === 'all'：影响全部实例（包括历史） — 询问用户确认后删除该 series 的所有实例并基于新设置重建
-                    const confirmed = await showConfirmDialog(`您选择了“影响历史与未来实例”。此操作将删除并重建整个系列（seriesId=${seriesIdToUse}），历史记录将丢失。是否继续？`, '确认编辑范围：影响全部实例');
+                    const confirmed = await showDangerConfirm(`您选择了“影响历史与未来实例”。此操作将删除并重建整个系列（seriesId=${seriesIdToUse}），历史记录将丢失。是否继续？`, '确认编辑范围：影响全部实例');
                     if (!confirmed) {
                         // 用户取消，不做破坏性操作，直接保存当前被编辑的单条任务（已在 tasks[taskIndex] 更新）并退出编辑流程
                         saveData();
@@ -4275,13 +4255,13 @@ function showConfirmDialog(message, title = '确认操作') {
         const confirmDialogCancel = document.getElementById('confirmDialogCancel');
         const confirmDialogCloseBtn = document.getElementById('confirmDialogCloseBtn');
 
-        // 显示取消按钮并设置文本
-        confirmDialogCancel.classList.remove('hidden');
-        confirmDialogTitle.textContent = title;
-        confirmDialogMessage.innerHTML = message;
-        confirmDialogConfirm.textContent = '确定';
+    // 显示取消按钮并设置文本
+    confirmDialogCancel.classList.remove('hidden');
+    confirmDialogTitle.textContent = title;
+    confirmDialogMessage.innerHTML = message;
+    confirmDialogConfirm.textContent = '确定';
 
-        confirmDialog.classList.remove('hidden');
+    confirmDialog.classList.remove('hidden');
 
         const handleConfirm = () => { cleanup(); resolve(true); };
         const handleCancel = () => { cleanup(); resolve(false); };
@@ -4297,5 +4277,19 @@ function showConfirmDialog(message, title = '确认操作') {
         confirmDialogConfirm.addEventListener('click', handleConfirm);
         confirmDialogCancel.addEventListener('click', handleCancel);
         confirmDialogCloseBtn.addEventListener('click', handleCancel);
+    });
+}
+
+// 支持危险模式的确认对话框（danger=true 时突出红色并添加警示）
+function showDangerConfirm(message, title = '重要：请确认') {
+    const warnHtml = `<div style="color:#b91c1c;font-weight:600;margin-bottom:8px;">⚠️ 警告：此操作不可逆，可能会删除历史数据。</div>`;
+    // 将确认按钮样式改为红色临时处理
+    const confirmBtn = document.getElementById('confirmDialogConfirm');
+    const prevClass = confirmBtn ? confirmBtn.className : '';
+    if (confirmBtn) confirmBtn.className = 'flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors shadow-button';
+    return showConfirmDialog(warnHtml + message, title).then(res => {
+        // 恢复按钮样式
+        if (confirmBtn) confirmBtn.className = prevClass;
+        return res;
     });
 }
