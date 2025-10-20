@@ -84,6 +84,8 @@ const subjectNameInput = document.getElementById('subjectName');
 const subjectColorInput = document.getElementById('subjectColor');
 const colorOptions = document.querySelectorAll('.color-option');
 const taskSubjectSelect = document.getElementById('taskSubject');
+const seriesInfoEl = document.getElementById('seriesInfo');
+const seriesIdDisplay = document.getElementById('seriesIdDisplay');
 const enableStartDateCheckbox = document.getElementById('enableStartDate');
 const startDateInput = document.getElementById('startDateInput');
 const enableEndDateCheckbox = document.getElementById('enableEndDate');
@@ -1738,6 +1740,9 @@ function openAddTaskModal() {
             const coinsInput = document.getElementById('taskCoins');
             if (durationInput) durationInput.value = 10; // 默认10分钟
             if (coinsInput) coinsInput.value = 1; // 默认1金币
+        // 新增：隐藏系列信息（新增任务默认无系列）
+        if (seriesInfoEl) seriesInfoEl.classList.add('hidden');
+        if (seriesIdDisplay) seriesIdDisplay.textContent = '-';
         taskModalEl.classList.remove('hidden');
         document.getElementById('taskName').focus();
     });
@@ -1860,6 +1865,33 @@ function openEditTaskModal(taskId) {
         }
         // 设置输入法适配
         setupTaskModalInputAdaptation();
+        // 显示系列信息和编辑范围选择（仅当属于某个 series 或为循环任务时）
+        if (seriesInfoEl) {
+            if (task.seriesId || task.frequency !== 'once') {
+                seriesInfoEl.classList.remove('hidden');
+                if (seriesIdDisplay) seriesIdDisplay.textContent = task.seriesId || '(未分配)';
+                // 填充摘要：频次 / 起止
+                const freq = task.frequency || 'once';
+                const start = task.startDate || '-';
+                const end = task.endDate || '（无）';
+                const summaryEl = document.getElementById('seriesSummary');
+                if (summaryEl) {
+                    let freqLabel = '';
+                    switch (freq) {
+                        case 'daily': freqLabel = '每天'; break;
+                        case 'every_n_days': freqLabel = `每 ${task.nDays || 1} 天`; break;
+                        case 'weekly': freqLabel = `每周（${(task.weekdays || []).join(',') || '全部'}）`; break;
+                        default: freqLabel = '一次性';
+                    }
+                    summaryEl.textContent = `${freqLabel}，起：${start}，止：${end}`;
+                }
+            } else {
+                seriesInfoEl.classList.add('hidden');
+                if (seriesIdDisplay) seriesIdDisplay.textContent = '-';
+                const summaryEl = document.getElementById('seriesSummary');
+                if (summaryEl) summaryEl.textContent = '-';
+            }
+        }
     });
 }
 
@@ -2119,7 +2151,7 @@ function openAddTaskModalWithSubject(subject) {
 }
 
 // 处理任务表单提交
-function handleTaskFormSubmit(e) {
+async function handleTaskFormSubmit(e) {
     e.preventDefault();
     
     const taskName = document.getElementById('taskName').value.trim();
@@ -2245,11 +2277,14 @@ function handleTaskFormSubmit(e) {
                 }
             }
             // 如果这是一个系列任务（或编辑时将任务改为循环），使用seriesId进行更温和的更新
-            // 保留历史（过去日期）的记录，但更新其元数据；删除并重建未来（>=今天）的实例
+            // 提供两种编辑范围：仅影响未来实例（默认）或影响全部实例（包含历史）
             const todayStr = new Date().toISOString().split('T')[0];
             // 决定是否需要按 series 更新：如果原任务有 seriesId 或 新频次不是 once
             const willBeSeries = taskFrequency !== 'once';
             let seriesIdToUse = originalTask.seriesId || null;
+            // 读取用户在编辑模态中选择的范围（默认 future）
+            const editScopeEl = document.querySelector('input[name="editScope"]:checked');
+            const editScope = editScopeEl ? editScopeEl.value : 'future';
             if (willBeSeries) {
                 // 如果原先没有 seriesId，则生成一个新的 seriesId（基于新规则）
                 if (!seriesIdToUse) {
@@ -2257,74 +2292,138 @@ function handleTaskFormSubmit(e) {
                     seriesIdToUse = 's_' + Array.from(seed).reduce((acc, ch) => ((acc << 5) - acc) + ch.charCodeAt(0), 0).toString(36).replace(/-/g, 'm');
                 }
 
-                // 1) 更新属于 seriesId 的所有实例的元数据（但保留其 status/actualDuration）
-                tasks.forEach(t => {
-                    if (t.seriesId && t.seriesId === seriesIdToUse) {
-                        // update metadata fields
-                        t.name = taskName;
-                        t.subject = taskSubject;
-                        t.plannedDuration = baseTask.plannedDuration;
-                        t.coins = baseTask.coins;
-                        t.description = baseTask.description;
-                        t.frequency = taskFrequency;
-                        t.nDays = taskFrequency === 'every_n_days' ? nDaysInput : null;
-                        t.weekdays = taskFrequency === 'weekly' ? selectedWeekdays : null;
-                        t.startDate = hasStartDate && startDate ? startDate : (t.startDate || null);
-                        t.endDate = hasEndDate && endDate ? endDate : (t.endDate || null);
-                    }
-                });
-
-                // 2) 删除未来（>= today）的实例（会重新生成）
-                tasks = tasks.filter(t => !(t.seriesId && t.seriesId === seriesIdToUse && t.date >= todayStr));
-
-                // 3) 生成新的未来实例（从 max(start, today) 到 endLimit）
-                const genStart = hasStartDate && startDate ? new Date(startDate) : new Date();
-                const regenStart = new Date(Math.max(new Date(genStart).setHours(0,0,0,0), new Date().setHours(0,0,0,0)));
-                let regenEnd = null;
-                if (hasEndDate && endDate) regenEnd = new Date(endDate);
-                else {
-                    if (taskFrequency === 'once') regenEnd = regenStart;
-                    else { regenEnd = new Date(regenStart); regenEnd.setDate(regenEnd.getDate() + 365); }
-                }
-                // iterate
-                const curDate = new Date(regenStart);
-                const regenDates = [];
-                while (curDate <= regenEnd) {
-                    const dateStr = curDate.toISOString().split('T')[0];
-                    let shouldAdd = false;
-                    switch (taskFrequency) {
-                        case 'daily': shouldAdd = true; break;
-                        case 'every_n_days': {
-                            const diffDays = Math.floor((curDate - genStart) / (1000 * 60 * 60 * 24));
-                            shouldAdd = diffDays % nDaysInput === 0; break;
+                // 如果用户选择仅影响未来实例（默认行为）
+                if (editScope === 'future') {
+                    // 1) 更新属于 seriesId 的所有实例的元数据（但保留其 status/actualDuration）
+                    tasks.forEach(t => {
+                        if (t.seriesId && t.seriesId === seriesIdToUse) {
+                            // update metadata fields
+                            t.name = taskName;
+                            t.subject = taskSubject;
+                            t.plannedDuration = baseTask.plannedDuration;
+                            t.coins = baseTask.coins;
+                            t.description = baseTask.description;
+                            t.frequency = taskFrequency;
+                            t.nDays = taskFrequency === 'every_n_days' ? nDaysInput : null;
+                            t.weekdays = taskFrequency === 'weekly' ? selectedWeekdays : null;
+                            t.startDate = hasStartDate && startDate ? startDate : (t.startDate || null);
+                            t.endDate = hasEndDate && endDate ? endDate : (t.endDate || null);
                         }
-                        case 'weekly': shouldAdd = selectedWeekdays.includes(curDate.getDay()); break;
-                        case 'once': shouldAdd = true; break;
-                    }
-                    if (shouldAdd) regenDates.push(dateStr);
-                    if (taskFrequency === 'once') break;
-                    curDate.setDate(curDate.getDate() + 1);
-                }
-
-                regenDates.forEach((d, idx) => {
-                    tasks.push({
-                        id: Date.now() + Math.floor(Math.random() * 100000) + idx,
-                        name: taskName,
-                        subject: taskSubject,
-                        description: baseTask.description,
-                        plannedDuration: baseTask.plannedDuration,
-                        coins: baseTask.coins,
-                        actualDuration: 0,
-                        status: 'pending',
-                        date: d,
-                        startDate: hasStartDate && startDate ? startDate : null,
-                        endDate: hasEndDate && endDate ? endDate : null,
-                        frequency: taskFrequency,
-                        nDays: taskFrequency === 'every_n_days' ? nDaysInput : null,
-                        weekdays: taskFrequency === 'weekly' ? selectedWeekdays : null,
-                        seriesId: seriesIdToUse
                     });
-                });
+
+                    // 2) 删除未来（>= today）的实例（会重新生成）
+                    tasks = tasks.filter(t => !(t.seriesId && t.seriesId === seriesIdToUse && t.date >= todayStr));
+
+                    // 3) 生成新的未来实例（从 max(start, today) 到 endLimit）
+                    const genStart = hasStartDate && startDate ? new Date(startDate) : new Date();
+                    const regenStart = new Date(Math.max(new Date(genStart).setHours(0,0,0,0), new Date().setHours(0,0,0,0)));
+                    let regenEnd = null;
+                    if (hasEndDate && endDate) regenEnd = new Date(endDate);
+                    else {
+                        if (taskFrequency === 'once') regenEnd = regenStart;
+                        else { regenEnd = new Date(regenStart); regenEnd.setDate(regenEnd.getDate() + 365); }
+                    }
+                    // iterate
+                    const curDate = new Date(regenStart);
+                    const regenDates = [];
+                    while (curDate <= regenEnd) {
+                        const dateStr = curDate.toISOString().split('T')[0];
+                        let shouldAdd = false;
+                        switch (taskFrequency) {
+                            case 'daily': shouldAdd = true; break;
+                            case 'every_n_days': {
+                                const diffDays = Math.floor((curDate - genStart) / (1000 * 60 * 60 * 24));
+                                shouldAdd = diffDays % nDaysInput === 0; break;
+                            }
+                            case 'weekly': shouldAdd = selectedWeekdays.includes(curDate.getDay()); break;
+                            case 'once': shouldAdd = true; break;
+                        }
+                        if (shouldAdd) regenDates.push(dateStr);
+                        if (taskFrequency === 'once') break;
+                        curDate.setDate(curDate.getDate() + 1);
+                    }
+
+                    regenDates.forEach((d, idx) => {
+                        tasks.push({
+                            id: Date.now() + Math.floor(Math.random() * 100000) + idx,
+                            name: taskName,
+                            subject: taskSubject,
+                            description: baseTask.description,
+                            plannedDuration: baseTask.plannedDuration,
+                            coins: baseTask.coins,
+                            actualDuration: 0,
+                            status: 'pending',
+                            date: d,
+                            startDate: hasStartDate && startDate ? startDate : null,
+                            endDate: hasEndDate && endDate ? endDate : null,
+                            frequency: taskFrequency,
+                            nDays: taskFrequency === 'every_n_days' ? nDaysInput : null,
+                            weekdays: taskFrequency === 'weekly' ? selectedWeekdays : null,
+                            seriesId: seriesIdToUse
+                        });
+                    });
+                } else {
+                    // editScope === 'all'：影响全部实例（包括历史） — 询问用户确认后删除该 series 的所有实例并基于新设置重建
+                    const confirmed = await showConfirmDialog(`您选择了“影响历史与未来实例”。此操作将删除并重建整个系列（seriesId=${seriesIdToUse}），历史记录将丢失。是否继续？`, '确认编辑范围：影响全部实例');
+                    if (!confirmed) {
+                        // 用户取消，不做破坏性操作，直接保存当前被编辑的单条任务（已在 tasks[taskIndex] 更新）并退出编辑流程
+                        saveData();
+                        renderTaskList();
+                        closeTaskModal();
+                        return;
+                    }
+
+                    // 先删除所有属于该 seriesId 的任务
+                    tasks = tasks.filter(t => !(t.seriesId && t.seriesId === seriesIdToUse));
+
+                    // 生成整段时间的实例（从 start 到 endLimit），注意：循环任务在这里应当有 startDate
+                    const genStartFull = hasStartDate && startDate ? new Date(startDate) : new Date();
+                    let regenEndFull = null;
+                    if (hasEndDate && endDate) regenEndFull = new Date(endDate);
+                    else {
+                        if (taskFrequency === 'once') regenEndFull = genStartFull;
+                        else { regenEndFull = new Date(genStartFull); regenEndFull.setDate(regenEndFull.getDate() + 365); }
+                    }
+
+                    const curDateAll = new Date(genStartFull);
+                    const regenDatesAll = [];
+                    while (curDateAll <= regenEndFull) {
+                        const dateStr = curDateAll.toISOString().split('T')[0];
+                        let shouldAdd = false;
+                        switch (taskFrequency) {
+                            case 'daily': shouldAdd = true; break;
+                            case 'every_n_days': {
+                                const diffDays = Math.floor((curDateAll - genStartFull) / (1000 * 60 * 60 * 24));
+                                shouldAdd = diffDays % nDaysInput === 0; break;
+                            }
+                            case 'weekly': shouldAdd = selectedWeekdays.includes(curDateAll.getDay()); break;
+                            case 'once': shouldAdd = true; break;
+                        }
+                        if (shouldAdd) regenDatesAll.push(dateStr);
+                        if (taskFrequency === 'once') break;
+                        curDateAll.setDate(curDateAll.getDate() + 1);
+                    }
+
+                    regenDatesAll.forEach((d, idx) => {
+                        tasks.push({
+                            id: Date.now() + Math.floor(Math.random() * 100000) + idx,
+                            name: taskName,
+                            subject: taskSubject,
+                            description: baseTask.description,
+                            plannedDuration: baseTask.plannedDuration,
+                            coins: baseTask.coins,
+                            actualDuration: 0,
+                            status: 'pending',
+                            date: d,
+                            startDate: hasStartDate && startDate ? startDate : null,
+                            endDate: hasEndDate && endDate ? endDate : null,
+                            frequency: taskFrequency,
+                            nDays: taskFrequency === 'every_n_days' ? nDaysInput : null,
+                            weekdays: taskFrequency === 'weekly' ? selectedWeekdays : null,
+                            seriesId: seriesIdToUse
+                        });
+                    });
+                }
             }
         }
     } else {
@@ -4162,4 +4261,39 @@ function isTaskVisible(dateStr, task) {
         if (new Date(dateStr) > new Date(task.endDate)) return false;
     }
     return true;
+}
+
+// 通用确认对话框，返回 Promise<boolean>
+function showConfirmDialog(message, title = '确认操作') {
+    return new Promise((resolve) => {
+        const confirmDialog = document.getElementById('confirmDialog');
+        const confirmDialogTitle = document.getElementById('confirmDialogTitle');
+        const confirmDialogMessage = document.getElementById('confirmDialogMessage');
+        const confirmDialogConfirm = document.getElementById('confirmDialogConfirm');
+        const confirmDialogCancel = document.getElementById('confirmDialogCancel');
+        const confirmDialogCloseBtn = document.getElementById('confirmDialogCloseBtn');
+
+        // 显示取消按钮并设置文本
+        confirmDialogCancel.classList.remove('hidden');
+        confirmDialogTitle.textContent = title;
+        confirmDialogMessage.innerHTML = message;
+        confirmDialogConfirm.textContent = '确定';
+
+        confirmDialog.classList.remove('hidden');
+
+        const handleConfirm = () => { cleanup(); resolve(true); };
+        const handleCancel = () => { cleanup(); resolve(false); };
+
+        function cleanup() {
+            confirmDialog.classList.add('hidden');
+            confirmDialogCancel.classList.remove('hidden');
+            confirmDialogConfirm.removeEventListener('click', handleConfirm);
+            confirmDialogCancel.removeEventListener('click', handleCancel);
+            confirmDialogCloseBtn.removeEventListener('click', handleCancel);
+        }
+
+        confirmDialogConfirm.addEventListener('click', handleConfirm);
+        confirmDialogCancel.addEventListener('click', handleCancel);
+        confirmDialogCloseBtn.addEventListener('click', handleCancel);
+    });
 }
