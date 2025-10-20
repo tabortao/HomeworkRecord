@@ -84,6 +84,11 @@ const subjectNameInput = document.getElementById('subjectName');
 const subjectColorInput = document.getElementById('subjectColor');
 const colorOptions = document.querySelectorAll('.color-option');
 const taskSubjectSelect = document.getElementById('taskSubject');
+const enableStartDateCheckbox = document.getElementById('enableStartDate');
+const startDateInput = document.getElementById('startDateInput');
+const enableEndDateCheckbox = document.getElementById('enableEndDate');
+const endDateInput = document.getElementById('endDateInput');
+const endDateContainer = document.getElementById('endDateContainer');
 
 // 页面相关元素
 const calendarPageEl = document.getElementById('calendar-page');
@@ -208,6 +213,9 @@ function initApp() {
     
     // 初始化学科选择下拉框
     updateSubjectSelect();
+
+    // 初始化任务表单日期控件默认值
+    initTaskDateControls();
     
     // 初始化显示日历页面
     switchPage('calendar');
@@ -1720,6 +1728,11 @@ function openAddTaskModal() {
         currentTaskId = null;
         modalTitleEl.textContent = '添加新任务';
         taskFormEl.reset();
+        // reset date controls to defaults
+        if (startDateInput) startDateInput.value = new Date().toISOString().split('T')[0];
+        if (enableStartDateCheckbox) enableStartDateCheckbox.checked = false;
+        if (endDateInput) endDateInput.value = '';
+        if (enableEndDateCheckbox) enableEndDateCheckbox.checked = false;
         taskModalEl.classList.remove('hidden');
         document.getElementById('taskName').focus();
     });
@@ -1821,6 +1834,25 @@ function openEditTaskModal(taskId) {
         }
         
         taskModalEl.classList.remove('hidden');
+        // 填充日期字段，如果任务带有 start/end
+        if (task.startDate) {
+            enableStartDateCheckbox.checked = true;
+            startDateInput.disabled = false;
+            startDateInput.value = task.startDate;
+        } else {
+            enableStartDateCheckbox.checked = false;
+            if (startDateInput) startDateInput.disabled = true;
+            startDateInput.value = new Date().toISOString().split('T')[0];
+        }
+        if (task.endDate) {
+            enableEndDateCheckbox.checked = true;
+            endDateInput.disabled = false;
+            endDateInput.value = task.endDate;
+        } else {
+            enableEndDateCheckbox.checked = false;
+            if (endDateInput) endDateInput.disabled = true;
+            endDateInput.value = '';
+        }
         // 设置输入法适配
         setupTaskModalInputAdaptation();
     });
@@ -2094,6 +2126,12 @@ function handleTaskFormSubmit(e) {
     const selectedWeekdays = Array.from(document.querySelectorAll('.weekday-checkbox:checked')).map(cb => parseInt(cb.value));
     
     // 构建基本任务对象
+    // 日期设置
+    const hasStartDate = enableStartDateCheckbox ? enableStartDateCheckbox.checked : false;
+    const startDate = hasStartDate && startDateInput && startDateInput.value ? startDateInput.value : null;
+    const hasEndDate = enableEndDateCheckbox ? enableEndDateCheckbox.checked : false;
+    const endDate = hasEndDate && endDateInput && endDateInput.value ? endDateInput.value : null;
+
     const baseTask = {
         name: taskName,
         subject: taskSubject,
@@ -2103,6 +2141,34 @@ function handleTaskFormSubmit(e) {
         actualDuration: 0,
         status: taskStatus
     };
+
+    // 验证日期规则
+    if (taskFrequency === 'once') {
+        // 一次性任务只能设置开始日期
+        if (hasEndDate) {
+            showNotification('一次性任务不能设置结束日期', 'warning');
+            return;
+        }
+        // startDate 可为空（则视为今天），但如果启用，应允许历史日期
+    } else {
+        // 循环任务必须有开始日期
+        if (!hasStartDate || !startDate) {
+            showNotification('循环任务必须启用并设置开始日期', 'warning');
+            return;
+        }
+    }
+
+    if (hasStartDate && hasEndDate && startDate && endDate) {
+        if (new Date(endDate) < new Date(startDate)) {
+            showNotification('结束日期不能早于开始日期', 'warning');
+            return;
+        }
+    }
+
+    if (taskFrequency === 'every_n_days' && (isNaN(nDaysInput) || nDaysInput <= 0)) {
+        showNotification('自定义天数必须大于0', 'warning');
+        return;
+    }
     
     if (currentTaskId) {
         // 编辑现有任务
@@ -2167,50 +2233,61 @@ function handleTaskFormSubmit(e) {
         }
     } else {
         // 添加新任务，根据打卡频次生成任务
-        const today = new Date();
-        
-        // 生成未来30天的任务
-        for (let i = 0; i < 30; i++) {
-            const targetDate = new Date(today);
-            targetDate.setDate(today.getDate() + i);
-            const dateStr = targetDate.toISOString().split('T')[0];
-            const dayOfWeek = targetDate.getDay();
-            
-            // 根据不同的打卡频次决定是否添加任务
-            let shouldAddTask = false;
-            
-            switch (taskFrequency) {
-                case 'once':
-                    // 只添加当天任务
-                    shouldAddTask = i === 0;
-                    break;
-                case 'daily':
-                    // 添加每天任务
-                    shouldAddTask = true;
-                    break;
-                case 'every_n_days':
-                    // 每n天添加一次任务
-                    shouldAddTask = i % nDaysInput === 0;
-                    break;
-                case 'weekly':
-                    // 添加每周指定日期的任务
-                    shouldAddTask = selectedWeekdays.includes(dayOfWeek);
-                    break;
-            }
-            
-            if (shouldAddTask) {
-                tasks.push({
-                    id: Date.now() + i,
-                    ...baseTask,
-                    date: dateStr
-                });
-                
-                // 只为第一次添加的任务记录操作
-                if (i === 0) {
-                    addActivityLog('task_add', `添加了新任务「${taskName}」`);
-                }
+        // 生成任务实例：对于一次性任务，使用 startDate（可为历史）或今天；
+        // 对于循环任务，根据 start/end 生成实例。为避免无限生成，当未设置结束日期时，默认生成到未来一年（365天）。
+        const start = hasStartDate && startDate ? new Date(startDate) : new Date();
+        let endLimit = null;
+        if (hasEndDate && endDate) {
+            endLimit = new Date(endDate);
+        } else {
+            // 如果是一次性且无开始日期，通过今天生成单个；如果循环且无结束，则限制为一年
+            if (taskFrequency === 'once') {
+                endLimit = start; // single
+            } else {
+                endLimit = new Date(start);
+                endLimit.setDate(endLimit.getDate() + 365);
             }
         }
+
+        // 生成日期迭代
+        const generateDates = [];
+        const cur = new Date(start);
+        while (cur <= endLimit) {
+            const dateStr = cur.toISOString().split('T')[0];
+            let shouldAdd = false;
+            switch (taskFrequency) {
+                case 'once':
+                    shouldAdd = true; // only start date
+                    break;
+                case 'daily':
+                    shouldAdd = true;
+                    break;
+                case 'every_n_days':
+                    const diffDays = Math.floor((cur - start) / (1000 * 60 * 60 * 24));
+                    shouldAdd = diffDays % nDaysInput === 0;
+                    break;
+                case 'weekly':
+                    shouldAdd = selectedWeekdays.includes(cur.getDay());
+                    break;
+            }
+            if (shouldAdd) generateDates.push(dateStr);
+            if (taskFrequency === 'once') break; // 只添加一次
+            cur.setDate(cur.getDate() + 1);
+        }
+
+        generateDates.forEach((dateStr, idx) => {
+            tasks.push({
+                id: Date.now() + Math.floor(Math.random() * 100000) + idx,
+                ...baseTask,
+                date: dateStr,
+                startDate: start ? start.toISOString().split('T')[0] : null,
+                endDate: endLimit ? endLimit.toISOString().split('T')[0] : null,
+                frequency: taskFrequency,
+                nDays: taskFrequency === 'every_n_days' ? nDaysInput : null,
+                weekdays: taskFrequency === 'weekly' ? selectedWeekdays : null
+            });
+        });
+        addActivityLog('task_add', `添加了新任务「${taskName}」`);
     }
     
     saveData();
@@ -2790,7 +2867,7 @@ function toggleTaskStatus(taskId) {
 // 渲染任务列表
 function renderTaskList(filter = 'all') {
     // 使用选中的日期，而不是默认的今天
-    let filteredTasks = tasks.filter(task => task.date === selectedDate);
+    let filteredTasks = tasks.filter(task => task.date === selectedDate).filter(task => isTaskVisible(selectedDate, task));
     
     // 根据筛选条件过滤任务
     if (filter === 'completed') {
@@ -3288,6 +3365,23 @@ function setupFrequencyUIListeners() {
             case 'weekly':
                 if (weekdaysCheckboxes) weekdaysCheckboxes.style.opacity = '1';
                 break;
+        }
+        // 控制开始/结束日期显示与启用
+        if (selectedFrequency === 'once') {
+            // 一次性任务：结束日期隐藏，开始日期可选（允许历史补卡）
+            if (endDateContainer) endDateContainer.style.display = 'none';
+            if (enableStartDateCheckbox) {
+                // 不强制启用开始日期
+                // keep current state
+            }
+        } else {
+            // 循环任务：必须启用开始日期（默认今天），结束日期可选
+            if (endDateContainer) endDateContainer.style.display = 'block';
+            if (enableStartDateCheckbox) {
+                enableStartDateCheckbox.checked = true;
+                if (startDateInput) startDateInput.disabled = false;
+            }
+            // endDate disabled state handled by its checkbox listener
         }
     }
 }
@@ -3911,4 +4005,42 @@ if (window.clearUserData) {
             });
         });
     };
+}
+
+// 初始化任务表单的日期控件
+function initTaskDateControls() {
+    if (startDateInput) {
+        startDateInput.value = new Date().toISOString().split('T')[0];
+        startDateInput.disabled = true;
+    }
+    if (enableStartDateCheckbox) {
+        enableStartDateCheckbox.checked = false;
+        enableStartDateCheckbox.addEventListener('change', () => {
+            if (startDateInput) startDateInput.disabled = !enableStartDateCheckbox.checked;
+        });
+    }
+    if (enableEndDateCheckbox) {
+        enableEndDateCheckbox.checked = false;
+        enableEndDateCheckbox.addEventListener('change', () => {
+            if (endDateInput) endDateInput.disabled = !enableEndDateCheckbox.checked;
+        });
+    }
+    if (endDateInput) {
+        endDateInput.disabled = true;
+    }
+    // 初始时一次性任务隐藏结束日期容器
+    if (endDateContainer) endDateContainer.style.display = 'block';
+}
+
+// 判断任务在某日期是否可见（基于 startDate/endDate）
+function isTaskVisible(dateStr, task) {
+    // 如果任务有开始日期，且查询日期在开始日期之前，则不可见
+    if (task.startDate) {
+        if (new Date(dateStr) < new Date(task.startDate)) return false;
+    }
+    // 如果任务有结束日期，且查询日期在结束日期之后，则不可见
+    if (task.endDate) {
+        if (new Date(dateStr) > new Date(task.endDate)) return false;
+    }
+    return true;
 }
