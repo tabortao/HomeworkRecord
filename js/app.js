@@ -1733,6 +1733,11 @@ function openAddTaskModal() {
         if (enableStartDateCheckbox) enableStartDateCheckbox.checked = false;
         if (endDateInput) endDateInput.value = '';
         if (enableEndDateCheckbox) enableEndDateCheckbox.checked = false;
+            // 默认计划时长与奖励金币
+            const durationInput = document.getElementById('taskDuration');
+            const coinsInput = document.getElementById('taskCoins');
+            if (durationInput) durationInput.value = 10; // 默认10分钟
+            if (coinsInput) coinsInput.value = 1; // 默认1金币
         taskModalEl.classList.remove('hidden');
         document.getElementById('taskName').focus();
     });
@@ -2096,7 +2101,16 @@ function openAddTaskModalWithSubject(subject) {
         currentTaskId = null;
         modalTitleEl.textContent = '添加新任务';
         taskFormEl.reset();
+        // 预设学科并重置日期/默认值
         document.getElementById('taskSubject').value = subject;
+        if (startDateInput) startDateInput.value = new Date().toISOString().split('T')[0];
+        if (enableStartDateCheckbox) enableStartDateCheckbox.checked = false;
+        if (endDateInput) endDateInput.value = '';
+        if (enableEndDateCheckbox) enableEndDateCheckbox.checked = false;
+        const durationInput2 = document.getElementById('taskDuration');
+        const coinsInput2 = document.getElementById('taskCoins');
+        if (durationInput2) durationInput2.value = 10;
+        if (coinsInput2) coinsInput2.value = 1;
         taskModalEl.classList.remove('hidden');
         document.getElementById('taskName').focus();
         // 设置输入法适配
@@ -2230,12 +2244,94 @@ function handleTaskFormSubmit(e) {
                     showNotification(`获得 ${taskCoins} 个金币！`, 'success');
                 }
             }
+            // 如果这是一个系列任务（或编辑时将任务改为循环），使用seriesId进行更温和的更新
+            // 保留历史（过去日期）的记录，但更新其元数据；删除并重建未来（>=今天）的实例
+            const todayStr = new Date().toISOString().split('T')[0];
+            // 决定是否需要按 series 更新：如果原任务有 seriesId 或 新频次不是 once
+            const willBeSeries = taskFrequency !== 'once';
+            let seriesIdToUse = originalTask.seriesId || null;
+            if (willBeSeries) {
+                // 如果原先没有 seriesId，则生成一个新的 seriesId（基于新规则）
+                if (!seriesIdToUse) {
+                    const seed = `${taskName}::${taskSubject}::${taskFrequency}::${hasStartDate && startDate ? startDate : ''}::${nDaysInput || ''}::${(selectedWeekdays || []).join(',')}`;
+                    seriesIdToUse = 's_' + Array.from(seed).reduce((acc, ch) => ((acc << 5) - acc) + ch.charCodeAt(0), 0).toString(36).replace(/-/g, 'm');
+                }
+
+                // 1) 更新属于 seriesId 的所有实例的元数据（但保留其 status/actualDuration）
+                tasks.forEach(t => {
+                    if (t.seriesId && t.seriesId === seriesIdToUse) {
+                        // update metadata fields
+                        t.name = taskName;
+                        t.subject = taskSubject;
+                        t.plannedDuration = baseTask.plannedDuration;
+                        t.coins = baseTask.coins;
+                        t.description = baseTask.description;
+                        t.frequency = taskFrequency;
+                        t.nDays = taskFrequency === 'every_n_days' ? nDaysInput : null;
+                        t.weekdays = taskFrequency === 'weekly' ? selectedWeekdays : null;
+                        t.startDate = hasStartDate && startDate ? startDate : (t.startDate || null);
+                        t.endDate = hasEndDate && endDate ? endDate : (t.endDate || null);
+                    }
+                });
+
+                // 2) 删除未来（>= today）的实例（会重新生成）
+                tasks = tasks.filter(t => !(t.seriesId && t.seriesId === seriesIdToUse && t.date >= todayStr));
+
+                // 3) 生成新的未来实例（从 max(start, today) 到 endLimit）
+                const genStart = hasStartDate && startDate ? new Date(startDate) : new Date();
+                const regenStart = new Date(Math.max(new Date(genStart).setHours(0,0,0,0), new Date().setHours(0,0,0,0)));
+                let regenEnd = null;
+                if (hasEndDate && endDate) regenEnd = new Date(endDate);
+                else {
+                    if (taskFrequency === 'once') regenEnd = regenStart;
+                    else { regenEnd = new Date(regenStart); regenEnd.setDate(regenEnd.getDate() + 365); }
+                }
+                // iterate
+                const curDate = new Date(regenStart);
+                const regenDates = [];
+                while (curDate <= regenEnd) {
+                    const dateStr = curDate.toISOString().split('T')[0];
+                    let shouldAdd = false;
+                    switch (taskFrequency) {
+                        case 'daily': shouldAdd = true; break;
+                        case 'every_n_days': {
+                            const diffDays = Math.floor((curDate - genStart) / (1000 * 60 * 60 * 24));
+                            shouldAdd = diffDays % nDaysInput === 0; break;
+                        }
+                        case 'weekly': shouldAdd = selectedWeekdays.includes(curDate.getDay()); break;
+                        case 'once': shouldAdd = true; break;
+                    }
+                    if (shouldAdd) regenDates.push(dateStr);
+                    if (taskFrequency === 'once') break;
+                    curDate.setDate(curDate.getDate() + 1);
+                }
+
+                regenDates.forEach((d, idx) => {
+                    tasks.push({
+                        id: Date.now() + Math.floor(Math.random() * 100000) + idx,
+                        name: taskName,
+                        subject: taskSubject,
+                        description: baseTask.description,
+                        plannedDuration: baseTask.plannedDuration,
+                        coins: baseTask.coins,
+                        actualDuration: 0,
+                        status: 'pending',
+                        date: d,
+                        startDate: hasStartDate && startDate ? startDate : null,
+                        endDate: hasEndDate && endDate ? endDate : null,
+                        frequency: taskFrequency,
+                        nDays: taskFrequency === 'every_n_days' ? nDaysInput : null,
+                        weekdays: taskFrequency === 'weekly' ? selectedWeekdays : null,
+                        seriesId: seriesIdToUse
+                    });
+                });
+            }
         }
     } else {
         // 添加新任务，根据打卡频次生成任务
-        // 生成任务实例：对于一次性任务，使用 startDate（可为历史）或今天；
+    // 生成任务实例：对于一次性任务，使用 startDate（可为历史）或今天；
         // 对于循环任务，根据 start/end 生成实例。为避免无限生成，当未设置结束日期时，默认生成到未来一年（365天）。
-        const start = hasStartDate && startDate ? new Date(startDate) : new Date();
+    const start = hasStartDate && startDate ? new Date(startDate) : new Date();
         let endLimit = null;
         if (hasEndDate && endDate) {
             endLimit = new Date(endDate);
@@ -2249,7 +2345,7 @@ function handleTaskFormSubmit(e) {
             }
         }
 
-        // 生成日期迭代
+    // 生成日期迭代
         const generateDates = [];
         const cur = new Date(start);
         while (cur <= endLimit) {
@@ -2275,6 +2371,18 @@ function handleTaskFormSubmit(e) {
             cur.setDate(cur.getDate() + 1);
         }
 
+        // 如果是循环任务，生成一个 seriesId 用于避免重复生成
+        let seriesId = null;
+        if (taskFrequency !== 'once') {
+            // 生成基于任务核心字段的确定性 seriesId
+            const seriesSeed = `${taskName}::${taskSubject}::${taskFrequency}::${start ? start.toISOString().split('T')[0] : ''}::${nDaysInput || ''}::${(selectedWeekdays || []).join(',')}`;
+            // 简单哈希（非加密）
+            seriesId = 's_' + Array.from(seriesSeed).reduce((acc, ch) => ((acc << 5) - acc) + ch.charCodeAt(0), 0).toString(36).replace(/-/g, 'm');
+
+            // 删除已有 tasks 中属于同一 seriesId 的旧实例，以避免重复
+            tasks = tasks.filter(t => !(t.seriesId && t.seriesId === seriesId));
+        }
+
         generateDates.forEach((dateStr, idx) => {
             tasks.push({
                 id: Date.now() + Math.floor(Math.random() * 100000) + idx,
@@ -2284,7 +2392,8 @@ function handleTaskFormSubmit(e) {
                 endDate: endLimit ? endLimit.toISOString().split('T')[0] : null,
                 frequency: taskFrequency,
                 nDays: taskFrequency === 'every_n_days' ? nDaysInput : null,
-                weekdays: taskFrequency === 'weekly' ? selectedWeekdays : null
+                weekdays: taskFrequency === 'weekly' ? selectedWeekdays : null,
+                seriesId: seriesId
             });
         });
         addActivityLog('task_add', `添加了新任务「${taskName}」`);
@@ -2931,12 +3040,22 @@ function renderTaskList(filter = 'all') {
                                     <button class="text-primary p-1 rounded-full hover:bg-primary/10 transition-colors" onclick="openPomodoroModal(${task.id})" title="开始番茄钟">
                                         <img src="static/images/番茄钟.png" alt="番茄钟" class="w-5 h-5">
                                     </button>
-                                    <span class="text-xs text-textSecondary whitespace-nowrap">
-                                        ${formatDuration(task.plannedDuration)}${task.actualDuration > 0 ? ` / ${formatDuration(task.actualDuration)}` : ''}
-                                    </span>
-                                <span class="text-xs text-amber-500 whitespace-nowrap flex items-center">
-                                    <i class="fa fa-coins mr-1"></i>${task.coins || 0}
-                                </span>
+                                    ${(() => {
+                                        // 计划时长：若未设置或为0，显示默认 10 分钟 的浅色斜体样式
+                                        const hasDuration = task.plannedDuration && task.plannedDuration > 0;
+                                        const displayDur = hasDuration ? formatDuration(task.plannedDuration) : formatDuration(10);
+                                        const durExtra = task.actualDuration > 0 ? ` / ${formatDuration(task.actualDuration)}` : '';
+                                        const durCls = hasDuration ? 'text-xs text-textSecondary whitespace-nowrap' : 'text-xs italic text-gray-400 whitespace-nowrap';
+                                        return `<span class="${durCls}">${displayDur}${durExtra}</span>`;
+                                    })()}
+                                    ${(() => {
+                                        // 奖励金币：若未设置或为0，显示默认 1 金币 的浅色斜体样式
+                                        const coinsVal = (task.coins || task.coins === 0) ? task.coins : null;
+                                        const hasCoins = coinsVal !== null && coinsVal > 0;
+                                        const displayCoins = hasCoins ? coinsVal : 1;
+                                        const coinCls = hasCoins ? 'text-xs text-amber-500 whitespace-nowrap flex items-center' : 'text-xs italic text-amber-300 whitespace-nowrap flex items-center';
+                                        return `<span class="${coinCls}"><i class="fa fa-coins mr-1"></i>${displayCoins}</span>`;
+                                    })()}
                                 <div class="relative">
                                     <button class="task-menu-btn p-1.5 rounded-full hover:bg-gray-100 transition-colors" data-task-id="${task.id}">
                                         <i class="fa fa-ellipsis-v text-textSecondary"></i>
