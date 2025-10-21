@@ -232,6 +232,7 @@ function initApp() {
     updateCurrentUserInfo();
     renderUsersList();
     renderAvatarOptions();
+    loadAndRenderVersion(); // 调用版本加载函数
 }
 
 // 加载本地存储数据
@@ -4146,6 +4147,41 @@ function enhancedInitAppWithLogs() {
 
 // 初始化应用
 document.addEventListener('DOMContentLoaded', enhancedInitAppWithLogs);
+
+// 读取根目录下的 version.json 并在个人中心底部显示
+async function loadAndRenderVersion() {
+    const el = document.getElementById('appVersionText');
+    if (!el) return;
+    try {
+        const resp = await fetch('/version.json', { cache: 'no-store' });
+        if (!resp.ok) throw new Error('网络响应错误');
+        const data = await resp.json();
+        const version = data.version || '未知';
+        let buildTime = data.buildTime || data.build_time || '';
+        if (buildTime) {
+            try {
+                const d = new Date(buildTime);
+                // 以本地日期时间显示（短格式）
+                buildTime = d.toLocaleString();
+            } catch (e) {
+                // keep raw
+            }
+        } else {
+            buildTime = '--';
+        }
+        el.textContent = `版本: ${version}   构建时间: ${buildTime}`;
+    } catch (err) {
+        // 静默失败并显示占位
+        el.textContent = '版本信息加载失败';
+        console.error('加载version.json失败：', err);
+    }
+}
+
+// 在初始化应用完成后调用版本渲染（防止 DOM 未就绪）
+document.addEventListener('DOMContentLoaded', () => {
+    // delay a tick to allow other init to run
+    setTimeout(loadAndRenderVersion, 50);
+});
 
 // 在关键操作点添加操作记录
 // 覆盖一些关键函数以添加操作记录
