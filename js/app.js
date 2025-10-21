@@ -1470,10 +1470,16 @@ function setupEventListeners() {
     if (exportDataBtn) {
         exportDataBtn.addEventListener('click', function() {
             const allUserData = {
+                meta: {
+                    exportedAt: new Date().toISOString(),
+                    version: '1.0'
+                },
                 users: users,
-                data: {}
+                currentUserId: currentUserId,
+                data: {},
+                globals: {}
             };
-            
+
             // 收集每个用户的数据
             users.forEach(user => {
                 allUserData.data[user.id] = {
@@ -1484,12 +1490,28 @@ function setupEventListeners() {
                     activityLogs: JSON.parse(localStorage.getItem(`activityLogs_${user.id}`) || '[]')
                 };
             });
-            
+
+            // 收集全局/非 userId 分组的数据（如荣誉，可能存在的全局 subjectColors 键等）
+            try {
+                const honors = localStorage.getItem('timeManagementHonors');
+                if (honors) allUserData.globals.timeManagementHonors = JSON.parse(honors);
+            } catch (e) {
+                // ignore parse errors
+                allUserData.globals.timeManagementHonors = localStorage.getItem('timeManagementHonors');
+            }
+
+            try {
+                const globalSubjectColors = localStorage.getItem('subjectColors');
+                if (globalSubjectColors) allUserData.globals.subjectColors = JSON.parse(globalSubjectColors);
+            } catch (e) {
+                allUserData.globals.subjectColors = localStorage.getItem('subjectColors');
+            }
+
             // 创建JSON文件并下载
             const dataStr = JSON.stringify(allUserData, null, 2);
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(dataBlob);
-            
+
             const link = document.createElement('a');
             link.href = url;
             link.download = `时间管理数据_${toISODateLocal(new Date())}.json`;
@@ -1518,58 +1540,74 @@ function setupEventListeners() {
                 try {
                     const importedData = JSON.parse(event.target.result);
                     
-                    // 验证数据格式
-                    if (!importedData.users || !importedData.data) {
-                        throw new Error('数据格式错误');
-                    }
-                    
-                                    // 询问用户是否替换现有数据
-                        if (showConfirmDialog('导入数据将替换现有数据，确定继续吗？')) {
-                        // 保存用户列表
-                        users = importedData.users;
-                        
-                        // 保存每个用户的数据
-                        Object.keys(importedData.data).forEach(userId => {
-                            const userData = importedData.data[userId];
-                            if (userData.tasks) {
-                                localStorage.setItem(`timeManagementTasks_${userId}`, JSON.stringify(userData.tasks));
+                            // 验证数据格式
+                            if (!importedData.users || !importedData.data) {
+                                throw new Error('数据格式错误');
                             }
-                            if (userData.subjectColors) {
-                                localStorage.setItem(`subjectColors_${userId}`, JSON.stringify(userData.subjectColors));
-                            }
-                            if (userData.coins !== undefined) {
-                                localStorage.setItem(`timeManagementCoins_${userId}`, userData.coins);
-                            }
-                            if (userData.wishes) {
-                                localStorage.setItem(`timeManagementWishes_${userId}`, JSON.stringify(userData.wishes));
-                            }
-                            if (userData.activityLogs) {
-                                localStorage.setItem(`activityLogs_${userId}`, JSON.stringify(userData.activityLogs));
-                            }
-                        });
-                        
-                        // 如果有用户，设置当前用户为第一个用户
-                        if (users.length > 0) {
-                            currentUserId = users[0].id;
-                            currentUser = users[0];
-                            
-                            // 重新加载当前用户的数据
-                            loadUserData();
-                        }
-                        
-                        // 保存用户数据
-                        saveUsers();
-                        
-                        // 更新UI
-                        updateCurrentUserInfo();
-                        renderUsersList();
-                        updateSubjectSelect();
-                        
-                        // 切换到日历页面并更新
-                        switchPage('calendar');
-                        
-                        showNotification('数据导入成功！', 'success');
-                    }
+
+                            // 询问用户是否替换现有数据（等待用户确认）
+                            (async function() {
+                                const confirmed = await showConfirmDialog('导入数据将替换现有数据，确定继续吗？');
+                                if (!confirmed) return;
+
+                                // 保存用户列表
+                                users = importedData.users;
+
+                                // 保存每个用户的数据
+                                Object.keys(importedData.data).forEach(userId => {
+                                    const userData = importedData.data[userId];
+                                    if (userData.tasks) {
+                                        localStorage.setItem(`timeManagementTasks_${userId}`, JSON.stringify(userData.tasks));
+                                    }
+                                    if (userData.subjectColors) {
+                                        localStorage.setItem(`subjectColors_${userId}`, JSON.stringify(userData.subjectColors));
+                                    }
+                                    if (userData.coins !== undefined) {
+                                        localStorage.setItem(`timeManagementCoins_${userId}`, userData.coins);
+                                    }
+                                    if (userData.wishes) {
+                                        localStorage.setItem(`timeManagementWishes_${userId}`, JSON.stringify(userData.wishes));
+                                    }
+                                    if (userData.activityLogs) {
+                                        localStorage.setItem(`activityLogs_${userId}`, JSON.stringify(userData.activityLogs));
+                                    }
+                                });
+
+                                // 恢复全局数据（如果存在）
+                                if (importedData.globals) {
+                                    if (importedData.globals.timeManagementHonors !== undefined) {
+                                        localStorage.setItem('timeManagementHonors', JSON.stringify(importedData.globals.timeManagementHonors));
+                                    }
+                                    if (importedData.globals.subjectColors !== undefined) {
+                                        localStorage.setItem('subjectColors', JSON.stringify(importedData.globals.subjectColors));
+                                    }
+                                }
+
+                                // 如果导出包含 currentUserId，则恢复
+                                if (importedData.currentUserId) {
+                                    currentUserId = importedData.currentUserId;
+                                    currentUser = users.find(u => u.id === currentUserId) || users[0] || null;
+                                } else if (users.length > 0) {
+                                    currentUserId = users[0].id;
+                                    currentUser = users[0];
+                                }
+
+                                // 重新加载当前用户的数据
+                                if (currentUserId) loadUserData();
+
+                                // 保存用户数据
+                                saveUsers();
+
+                                // 更新UI
+                                updateCurrentUserInfo();
+                                renderUsersList();
+                                updateSubjectSelect();
+
+                                // 切换到日历页面并更新
+                                switchPage('calendar');
+
+                                showNotification('数据导入成功！', 'success');
+                            })();
             } catch (error) {
                 showNotification('导入失败：' + error.message, 'error');
                 }
@@ -4301,3 +4339,34 @@ function parseISODateLocal(dateStr) {
     const d = parseInt(parts[2], 10);
     return new Date(y, m, d);
 }
+
+// 开发时用的导出调试函数：在控制台打印将被导出的完整数据结构，便于验证
+window._debugExportAllUserData = function() {
+    const allUserData = {
+        meta: {
+            exportedAt: new Date().toISOString(),
+            version: '1.0',
+            debug: true
+        },
+        users: users,
+        currentUserId: currentUserId,
+        data: {},
+        globals: {}
+    };
+
+    users.forEach(user => {
+        allUserData.data[user.id] = {
+            tasks: getUserTasks(user.id),
+            subjectColors: getUserSubjectColors(user.id),
+            coins: getUserCoinsByUserId(user.id),
+            wishes: getUserWishesByUserId(user.id),
+            activityLogs: JSON.parse(localStorage.getItem(`activityLogs_${user.id}`) || '[]')
+        };
+    });
+
+    try { allUserData.globals.timeManagementHonors = JSON.parse(localStorage.getItem('timeManagementHonors') || 'null'); } catch (e) { allUserData.globals.timeManagementHonors = localStorage.getItem('timeManagementHonors'); }
+    try { allUserData.globals.subjectColors = JSON.parse(localStorage.getItem('subjectColors') || 'null'); } catch (e) { allUserData.globals.subjectColors = localStorage.getItem('subjectColors'); }
+
+    console.log('DEBUG_EXPORT_ALL_USER_DATA:', allUserData);
+    return allUserData;
+};
