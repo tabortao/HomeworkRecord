@@ -7,7 +7,7 @@ let currentDate = new Date();
 let currentTaskId = null;
 let currentWishId = null;
 let currentChart = null;
-let selectedDate = new Date().toISOString().split('T')[0]; // 当前选中的日期
+let selectedDate = toISODateLocal(new Date()); // 当前选中的日期
 let selectedSubject = '全部学科'; // 当前选中的学科
 
 // 用户管理相关变量
@@ -954,7 +954,7 @@ function getUserSubjectColors(userId) {
 
 // 计算总专注时间
 function calculateTotalFocusTime() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODateLocal(new Date());
     const todayTasks = tasks.filter(task => task.date === today && task.status === 'completed');
     return todayTasks.reduce((total, task) => total + (task.actualDuration || 0), 0);
 }
@@ -1492,7 +1492,7 @@ function setupEventListeners() {
             
             const link = document.createElement('a');
             link.href = url;
-            link.download = `时间管理数据_${new Date().toISOString().split('T')[0]}.json`;
+            link.download = `时间管理数据_${toISODateLocal(new Date())}.json`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -1730,8 +1730,8 @@ function openAddTaskModal() {
         currentTaskId = null;
         modalTitleEl.textContent = '添加新任务';
         taskFormEl.reset();
-        // reset date controls to defaults
-        if (startDateInput) startDateInput.value = new Date().toISOString().split('T')[0];
+    // reset date controls to defaults (use local date helper)
+    if (startDateInput) startDateInput.value = toISODateLocal(new Date());
         if (enableStartDateCheckbox) enableStartDateCheckbox.checked = false;
         if (endDateInput) endDateInput.value = '';
         if (enableEndDateCheckbox) enableEndDateCheckbox.checked = false;
@@ -1848,16 +1848,17 @@ function openEditTaskModal(taskId) {
         if (task.startDate) {
             enableStartDateCheckbox.checked = true;
             startDateInput.disabled = false;
-            startDateInput.value = task.startDate;
+            // 保证日期格式为 YYYY-MM-DD
+            startDateInput.value = toISODateLocal(parseISODateLocal(task.startDate) || new Date(task.startDate));
         } else {
             enableStartDateCheckbox.checked = false;
             if (startDateInput) startDateInput.disabled = true;
-            startDateInput.value = new Date().toISOString().split('T')[0];
+            startDateInput.value = toISODateLocal(new Date());
         }
         if (task.endDate) {
             enableEndDateCheckbox.checked = true;
             endDateInput.disabled = false;
-            endDateInput.value = task.endDate;
+            endDateInput.value = toISODateLocal(parseISODateLocal(task.endDate) || new Date(task.endDate));
         } else {
             enableEndDateCheckbox.checked = false;
             if (endDateInput) endDateInput.disabled = true;
@@ -2115,7 +2116,7 @@ function openAddTaskModalWithSubject(subject) {
         taskFormEl.reset();
         // 预设学科并重置日期/默认值
         document.getElementById('taskSubject').value = subject;
-        if (startDateInput) startDateInput.value = new Date().toISOString().split('T')[0];
+            if (startDateInput) startDateInput.value = toISODateLocal(new Date());
         if (enableStartDateCheckbox) enableStartDateCheckbox.checked = false;
         if (endDateInput) endDateInput.value = '';
         if (enableEndDateCheckbox) enableEndDateCheckbox.checked = false;
@@ -2139,7 +2140,7 @@ async function handleTaskFormSubmit(e) {
     const taskDuration = parseInt(document.getElementById('taskDuration').value) || 0;
     const taskDescription = document.getElementById('taskDescription').value.trim();
     const taskStatus = document.querySelector('input[name="taskStatus"]:checked').value;
-    const taskDate = new Date().toISOString().split('T')[0];
+    const taskDate = toISODateLocal(new Date());
     
     if (!taskName || taskDuration <= 0) {
         showNotification('请填写任务名称和有效时长', 'warning');
@@ -2258,7 +2259,7 @@ async function handleTaskFormSubmit(e) {
             }
             // 如果这是一个系列任务（或编辑时将任务改为循环），使用seriesId进行更温和的更新
             // 提供两种编辑范围：仅影响未来实例（默认）或影响全部实例（包含历史）
-            const todayStr = new Date().toISOString().split('T')[0];
+                    const todayStr = toISODateLocal(new Date());
             // 决定是否需要按 series 更新：如果原任务有 seriesId 或 新频次不是 once
             const willBeSeries = taskFrequency !== 'once';
             let seriesIdToUse = originalTask.seriesId || null;
@@ -2309,7 +2310,7 @@ async function handleTaskFormSubmit(e) {
                     const curDate = new Date(regenStart);
                     const regenDates = [];
                     while (curDate <= regenEnd) {
-                        const dateStr = curDate.toISOString().split('T')[0];
+                        const dateStr = toISODateLocal(curDate);
                         let shouldAdd = false;
                         switch (taskFrequency) {
                             case 'daily': shouldAdd = true; break;
@@ -2370,7 +2371,7 @@ async function handleTaskFormSubmit(e) {
                     const curDateAll = new Date(genStartFull);
                     const regenDatesAll = [];
                     while (curDateAll <= regenEndFull) {
-                        const dateStr = curDateAll.toISOString().split('T')[0];
+                        const dateStr = toISODateLocal(curDateAll);
                         let shouldAdd = false;
                         switch (taskFrequency) {
                             case 'daily': shouldAdd = true; break;
@@ -2412,10 +2413,11 @@ async function handleTaskFormSubmit(e) {
         // 添加新任务，根据打卡频次生成任务
     // 生成任务实例：对于一次性任务，使用 startDate（可为历史）或今天；
         // 对于循环任务，根据 start/end 生成实例。为避免无限生成，当未设置结束日期时，默认生成到未来一年（365天）。
-    const start = hasStartDate && startDate ? new Date(startDate) : new Date();
+    // 使用本地日期解析，避免时区导致日期偏移
+    const start = hasStartDate && startDate ? parseISODateLocal(startDate) : new Date();
         let endLimit = null;
         if (hasEndDate && endDate) {
-            endLimit = new Date(endDate);
+            endLimit = parseISODateLocal(endDate);
         } else {
             // 如果是一次性且无开始日期，通过今天生成单个；如果循环且无结束，则限制为一年
             if (taskFrequency === 'once') {
@@ -2430,7 +2432,7 @@ async function handleTaskFormSubmit(e) {
         const generateDates = [];
         const cur = new Date(start);
         while (cur <= endLimit) {
-            const dateStr = cur.toISOString().split('T')[0];
+            const dateStr = toISODateLocal(cur);
             let shouldAdd = false;
             switch (taskFrequency) {
                 case 'once':
@@ -2456,7 +2458,7 @@ async function handleTaskFormSubmit(e) {
         let seriesId = null;
         if (taskFrequency !== 'once') {
             // 生成基于任务核心字段的确定性 seriesId
-            const seriesSeed = `${taskName}::${taskSubject}::${taskFrequency}::${start ? start.toISOString().split('T')[0] : ''}::${nDaysInput || ''}::${(selectedWeekdays || []).join(',')}`;
+            const seriesSeed = `${taskName}::${taskSubject}::${taskFrequency}::${start ? toISODateLocal(start) : ''}::${nDaysInput || ''}::${(selectedWeekdays || []).join(',')}`;
             // 简单哈希（非加密）
             seriesId = 's_' + Array.from(seriesSeed).reduce((acc, ch) => ((acc << 5) - acc) + ch.charCodeAt(0), 0).toString(36).replace(/-/g, 'm');
 
@@ -2469,8 +2471,8 @@ async function handleTaskFormSubmit(e) {
                 id: Date.now() + Math.floor(Math.random() * 100000) + idx,
                 ...baseTask,
                 date: dateStr,
-                startDate: start ? start.toISOString().split('T')[0] : null,
-                endDate: endLimit ? endLimit.toISOString().split('T')[0] : null,
+                startDate: start ? toISODateLocal(start) : null,
+                endDate: endLimit ? toISODateLocal(endLimit) : null,
                 frequency: taskFrequency,
                 nDays: taskFrequency === 'every_n_days' ? nDaysInput : null,
                 weekdays: taskFrequency === 'weekly' ? selectedWeekdays : null,
@@ -3201,7 +3203,7 @@ function renderCalendar() {
         const isCurrentMonth = dayMonth === month;
         
         // 计算当天的任务数量
-        const dayStr = day.toISOString().split('T')[0];
+    const dayStr = toISODateLocal(day);
         const dayTasks = tasks.filter(task => task.date === dayStr);
         const completedTasks = dayTasks.filter(task => task.status === 'completed').length;
         
@@ -3294,7 +3296,7 @@ function renderStatsChart() {
     for (let i = 0; i < 7; i++) {
         const day = new Date(firstDayOfWeek);
         day.setDate(firstDayOfWeek.getDate() + i);
-        weekDays.push(day.toISOString().split('T')[0]);
+    weekDays.push(toISODateLocal(day));
         // 确保标签从周一到周日显示
         const weekDayLabels = ['一', '二', '三', '四', '五', '六', '日'];
         weekLabels.push(weekDayLabels[i]);
@@ -3399,7 +3401,7 @@ function renderStatsChart() {
         });
     } else if (chartType === 'subjects') {
         // 学科分布图表
-        const today = new Date().toISOString().split('T')[0];
+    const today = toISODateLocal(new Date());
         const todayTasks = tasks.filter(task => task.date === today);
         
         const subjects = {};
@@ -3445,7 +3447,7 @@ function renderStatsChart() {
 
 // 更新统计数据（根据当前选中的日期）
 function updateStatistics() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toISODateLocal(new Date());
     const todayTasks = tasks.filter(task => task.date === today);
     const completedTasks = todayTasks.filter(task => task.status === 'completed');
     
@@ -4210,7 +4212,7 @@ if (window.clearUserData) {
 // 初始化任务表单的日期控件
 function initTaskDateControls() {
     if (startDateInput) {
-        startDateInput.value = new Date().toISOString().split('T')[0];
+        startDateInput.value = toISODateLocal(new Date());
         startDateInput.disabled = true;
     }
     if (enableStartDateCheckbox) {
@@ -4292,4 +4294,25 @@ function showDangerConfirm(message, title = '重要：请确认') {
         if (confirmBtn) confirmBtn.className = prevClass;
         return res;
     });
+}
+
+// 日期处理助手：保证以本地日期为准，避免时区导致的前后一天偏移
+function toISODateLocal(d) {
+    if (!d) return null;
+    const date = (d instanceof Date) ? d : new Date(d);
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function parseISODateLocal(dateStr) {
+    if (!dateStr) return null;
+    // dateStr expected as 'YYYY-MM-DD'
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return null;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    return new Date(y, m, d);
 }
