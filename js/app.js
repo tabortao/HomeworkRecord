@@ -3447,52 +3447,37 @@ function renderStatsChart() {
 
 // 更新统计数据（根据当前选中的日期）
 function updateStatistics() {
-    const today = toISODateLocal(new Date());
-    const todayTasks = tasks.filter(task => task.date === today);
-    const completedTasks = todayTasks.filter(task => task.status === 'completed');
-    
+    // 使用当前选中的日期（支持查看历史日期的统计）
+    const day = selectedDate || toISODateLocal(new Date());
+    const dayTasks = tasks.filter(task => task.date === day);
+    const completedTasks = dayTasks.filter(task => task.status === 'completed');
+
     // 计算学习时间（包含所有学科）
     let studyTime = 0;
-    
-    // 计算今日金币
-    let todayCoins = 0;
-    
+
+    // 计算当日金币（包含历史补打卡）
+    let dayCoins = 0;
+
     completedTasks.forEach(task => {
         const duration = task.actualDuration || task.plannedDuration;
-        studyTime += duration; // 所有学科的任务时长都计入学习时间
-        todayCoins += task.coins || 0; // 累计今日获得的金币
+        studyTime += duration;
+        dayCoins += task.coins || 0;
     });
-    
+
     // 计算完成率
-    const completionRate = todayTasks.length > 0 ? Math.round((completedTasks.length / todayTasks.length) * 100) : 0;
-    
+    const completionRate = dayTasks.length > 0 ? Math.round((completedTasks.length / dayTasks.length) * 100) : 0;
+
     // 更新UI
     document.getElementById('studyTime').textContent = formatDuration(studyTime);
-    document.getElementById('taskCount').textContent = todayTasks.length;
+    document.getElementById('taskCount').textContent = dayTasks.length;
     document.getElementById('completionRate').textContent = `${completionRate}%`;
-    document.getElementById('todayCoins').textContent = todayCoins; // 更新今日金币显示
+    document.getElementById('todayCoins').textContent = dayCoins; // 更新当日金币显示
 }
 
 // 更新选中日期的统计数据
 function updateStatisticsForSelectedDate() {
-    const selectedDateTasks = tasks.filter(task => task.date === selectedDate);
-    const completedTasks = selectedDateTasks.filter(task => task.status === 'completed');
-    
-    // 计算学习时间（包含所有学科）
-    let studyTime = 0;
-    
-    completedTasks.forEach(task => {
-        const duration = task.actualDuration || task.plannedDuration;
-        studyTime += duration; // 所有学科的任务时长都计入学习时间
-    });
-    
-    // 计算完成率
-    const completionRate = selectedDateTasks.length > 0 ? Math.round((completedTasks.length / selectedDateTasks.length) * 100) : 0;
-    
-    // 更新UI
-    document.getElementById('studyTime').textContent = formatDuration(studyTime);
-    document.getElementById('taskCount').textContent = selectedDateTasks.length;
-    document.getElementById('completionRate').textContent = `${completionRate}%`;
+    // 重用 updateStatistics 的逻辑，确保统计基于 selectedDate
+    updateStatistics();
 }
 
 // 设置活动的学科筛选按钮样式
