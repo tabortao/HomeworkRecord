@@ -2825,18 +2825,36 @@ function handleWishFormSubmit(e) {
     
     // 添加密码验证
     return withPasswordVerification(currentWishId ? '编辑心愿需要验证密码' : '添加心愿需要验证密码', () => {
+        // 创建保存心愿的函数
+        function performSaveWish() {
+            saveWish(wishData);
+            // 添加操作记录
+            addActivityLog(currentWishId ? 'wish_edit' : 'wish_add', 
+                currentWishId ? `编辑了心愿「${wishData.name}」` : `添加了心愿「${wishData.name}」`);
+        }
+        
         // 检查是否有上传的图片
-        if (wishIconUploadEl.files.length > 0) {
+        if (wishIconUploadEl.files && wishIconUploadEl.files.length > 0) {
             const file = wishIconUploadEl.files[0];
             const reader = new FileReader();
-            reader.onload = function(e) {
-                wishData.icon = e.target.result;
-                wishData.iconType = 'image';
-                saveWish(wishData);
-                // 添加操作记录
-                addActivityLog(currentWishId ? 'wish_edit' : 'wish_add', currentWishId ? `编辑了心愿「${wishData.name}」` : `添加了心愿「${wishData.name}」`);
-            };
-            reader.readAsDataURL(file);
+            
+            // 使用闭包确保正确的上下文
+            reader.onload = (function(wishData, callback) {
+                return function(e) {
+                    wishData.icon = e.target.result;
+                    wishData.iconType = 'image';
+                    callback();
+                };
+            })(wishData, performSaveWish);
+            
+            try {
+                reader.readAsDataURL(file);
+                // 阻止函数过早返回，确保异步操作有时间完成
+                return false;
+            } catch (error) {
+                showNotification('图片处理失败: ' + error.message, 'error');
+                return false;
+            }
         } else {
             // 如果没有上传图片，检查是否是已有的emoji图标
             const currentWish = wishes.find(w => w.id === currentWishId);
@@ -2848,11 +2866,9 @@ function handleWishFormSubmit(e) {
                 wishData.iconType = 'emoji';
                 wishData.iconEmoji = '🎁';
             }
-            saveWish(wishData);
-            // 添加操作记录
-            addActivityLog(currentWishId ? 'wish_edit' : 'wish_add', currentWishId ? `编辑了心愿「${wishData.name}」` : `添加了心愿「${wishData.name}」`);
+            performSaveWish();
+            return true;
         }
-        return true;
     });
 }
 
