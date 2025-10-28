@@ -2981,7 +2981,7 @@ function handleWishFormSubmit(e) {
     };
     
     // 添加密码验证
-    return withPasswordVerification(currentWishId ? '编辑心愿需要验证密码' : '添加心愿需要验证密码', () => {
+    withPasswordVerification(currentWishId ? '编辑心愿需要验证密码' : '添加心愿需要验证密码', function() {
         // 创建保存心愿的函数
         function performSaveWish() {
             saveWish(wishData);
@@ -2995,22 +2995,27 @@ function handleWishFormSubmit(e) {
             const file = wishIconUploadEl.files[0];
             const reader = new FileReader();
             
-            // 使用闭包确保正确的上下文
-            reader.onload = (function(wishData, callback) {
-                return function(e) {
+            // 使用更直接的方式处理图片读取完成事件
+            reader.onload = function(e) {
+                try {
                     wishData.icon = e.target.result;
                     wishData.iconType = 'image';
-                    callback();
-                };
-            })(wishData, performSaveWish);
+                    performSaveWish();
+                } catch (error) {
+                    showNotification('图片处理失败: ' + error.message, 'error');
+                }
+            };
             
+            // 错误处理
+            reader.onerror = function() {
+                showNotification('图片读取失败，请重试', 'error');
+            };
+            
+            // 开始读取文件
             try {
                 reader.readAsDataURL(file);
-                // 阻止函数过早返回，确保异步操作有时间完成
-                return false;
             } catch (error) {
                 showNotification('图片处理失败: ' + error.message, 'error');
-                return false;
             }
         } else {
             // 如果没有上传图片，检查是否是已有的emoji图标
@@ -3024,8 +3029,9 @@ function handleWishFormSubmit(e) {
                 wishData.iconEmoji = '🎁';
             }
             performSaveWish();
-            return true;
         }
+        
+        // 不返回任何值，避免依赖返回值控制流程
     });
 }
 
