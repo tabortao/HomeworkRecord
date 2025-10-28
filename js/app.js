@@ -966,6 +966,144 @@ function saveUsers() {
     localStorage.setItem('currentUserId', currentUserId);
 }
 
+// 设置下拉刷新功能
+function setupPullToRefresh() {
+    const refreshThreshold = 80; // 触发刷新的阈值
+    let startY = 0;
+    let isPulling = false;
+    let pullDistance = 0;
+    let isRefreshing = false;
+    
+    // 创建刷新提示元素
+    const refreshIndicator = document.createElement('div');
+    refreshIndicator.className = 'fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-sm z-50 h-16 flex items-center justify-center text-gray-600 hidden';
+    refreshIndicator.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> 正在刷新...';
+    document.body.appendChild(refreshIndicator);
+    
+    // 重置下拉状态
+    function resetPullState() {
+        isPulling = false;
+        pullDistance = 0;
+        document.documentElement.style.transition = '';
+        document.documentElement.style.transform = '';
+        refreshIndicator.classList.add('hidden');
+    }
+    
+    // 执行刷新操作
+    function performRefresh() {
+        if (isRefreshing) return;
+        
+        isRefreshing = true;
+        refreshIndicator.classList.remove('hidden');
+        
+        // 重新加载数据
+        loadUserData();
+        
+        // 刷新页面内容
+        renderCalendar();
+        renderTaskList();
+        renderStatsChart();
+        updateStatistics();
+        
+        // 模拟刷新延迟
+        setTimeout(() => {
+            resetPullState();
+            isRefreshing = false;
+        }, 1000);
+    }
+    
+    // 移动端触摸事件
+    document.addEventListener('touchstart', (e) => {
+        // 只有在页面顶部且未滚动时才允许下拉刷新
+        if (window.scrollY === 0 && !isRefreshing) {
+            startY = e.touches[0].clientY;
+            isPulling = true;
+            document.documentElement.style.transition = '';
+        }
+    }, { passive: true });
+    
+    document.addEventListener('touchmove', (e) => {
+        if (isPulling && !isRefreshing) {
+            const currentY = e.touches[0].clientY;
+            pullDistance = currentY - startY;
+            
+            // 只允许向下拉
+            if (pullDistance > 0) {
+                // 限制最大下拉距离并添加弹性效果
+                const maxPullDistance = refreshThreshold * 1.5;
+                const effectiveDistance = Math.min(pullDistance, maxPullDistance);
+                const elasticDistance = effectiveDistance * (1 - Math.pow(effectiveDistance / maxPullDistance, 2));
+                
+                document.documentElement.style.transform = `translateY(${elasticDistance}px)`;
+                refreshIndicator.classList.remove('hidden');
+            }
+        }
+    }, { passive: true });
+    
+    document.addEventListener('touchend', () => {
+        if (isPulling && !isRefreshing) {
+            document.documentElement.style.transition = 'transform 0.3s ease';
+            
+            if (pullDistance >= refreshThreshold) {
+                // 触发刷新
+                performRefresh();
+            } else {
+                // 回弹
+                resetPullState();
+            }
+        }
+    }, { passive: true });
+    
+    // 桌面端鼠标事件
+    document.addEventListener('mousedown', (e) => {
+        // 只有在页面顶部且未滚动时才允许下拉刷新
+        if (window.scrollY === 0 && !isRefreshing && e.button === 0) { // 仅左键
+            startY = e.clientY;
+            isPulling = true;
+            document.documentElement.style.transition = '';
+        }
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (isPulling && !isRefreshing) {
+            const currentY = e.clientY;
+            pullDistance = currentY - startY;
+            
+            // 只允许向下拉
+            if (pullDistance > 0) {
+                // 限制最大下拉距离并添加弹性效果
+                const maxPullDistance = refreshThreshold * 1.5;
+                const effectiveDistance = Math.min(pullDistance, maxPullDistance);
+                const elasticDistance = effectiveDistance * (1 - Math.pow(effectiveDistance / maxPullDistance, 2));
+                
+                document.documentElement.style.transform = `translateY(${elasticDistance}px)`;
+                refreshIndicator.classList.remove('hidden');
+            }
+        }
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (isPulling && !isRefreshing) {
+            document.documentElement.style.transition = 'transform 0.3s ease';
+            
+            if (pullDistance >= refreshThreshold) {
+                // 触发刷新
+                performRefresh();
+            } else {
+                // 回弹
+                resetPullState();
+            }
+        }
+    });
+    
+    // 鼠标离开窗口时重置状态
+    document.addEventListener('mouseleave', () => {
+        if (isPulling && !isRefreshing) {
+            resetPullState();
+        }
+    });
+}
+
 // 设置事件监听器
 function setupEventListeners() {
     // 领取记录按钮事件监听
@@ -1020,6 +1158,9 @@ function setupEventListeners() {
     if (navWishesBtn) {
         navWishesBtn.addEventListener('click', () => switchPage('wishes'));
     }
+    
+    // 设置下拉刷新
+    setupPullToRefresh();
     
     // 小心愿相关事件监听器
     if (addWishBtn) addWishBtn.addEventListener('click', openAddWishModal);

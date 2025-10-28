@@ -869,14 +869,32 @@
     <script>
       // 检查浏览器是否支持Service Worker
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/service-worker.js')
-            .then(registration => {
-              console.log('Service Worker 注册成功，作用域为:', registration.scope);
-            })
-            .catch(error => {
-              console.error('Service Worker 注册失败:', error);
-            });
+        // 使用DOMContentLoaded事件确保DOM已完全加载
+        document.addEventListener('DOMContentLoaded', () => {
+          // 等待一小段时间再注册，确保文档完全准备好
+          setTimeout(() => {
+            try {
+              // 检查当前文档状态
+              if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                // 使用相对路径
+                navigator.serviceWorker.register('./service-worker.js', {
+                  scope: './'
+                })
+                .then(registration => {
+                  console.log('Service Worker 注册成功，作用域为:', registration.scope);
+                })
+                .catch(error => {
+                  console.warn('Service Worker 注册失败:', error);
+                  // 这个错误在开发环境中是可以接受的，不会影响应用功能
+                });
+              } else {
+                console.log('文档状态不适合注册Service Worker，跳过注册');
+              }
+            } catch (e) {
+              // 静默处理异常，不向用户显示错误
+              console.debug('Service Worker注册异常:', e);
+            }
+          }, 1000); // 延迟1秒执行
         });
       }
     </script>
