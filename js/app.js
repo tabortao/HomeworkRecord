@@ -2059,19 +2059,33 @@ function deleteSubject(subject) {
     
     // 检查是否有任务关联到该学科
     const subjectTasks = tasks.filter(task => task.subject === subject);
-    if (subjectTasks.length > 0) {
-        if (!confirm(`该学科有${subjectTasks.length}个任务，确定要删除吗？删除后任务将被移动到"其他"学科。`)) {
-            return;
+    const deleteSubjectAsync = async () => {
+        if (subjectTasks.length > 0) {
+            const confirmed = await showConfirmDialog(
+                `该学科有${subjectTasks.length}个任务，确定要删除吗？删除后任务将被移动到"其他"学科。`,
+                '删除学科'
+            );
+            if (!confirmed) return;
+            
+            // 将相关任务的学科改为"其他"
+            subjectTasks.forEach(task => {
+                task.subject = '其他';
+            });
+        } else {
+            const confirmed = await showConfirmDialog('确定要删除这个学科吗？', '删除学科');
+            if (!confirmed) return;
         }
         
-        // 将相关任务的学科改为"其他"
-        subjectTasks.forEach(task => {
-            task.subject = '其他';
-        });
-    } else if (!confirm('确定要删除这个学科吗？')) {
-        return;
-    }
+        // 执行删除操作
+        performSubjectDeletion(subject);
+    };
     
+    deleteSubjectAsync();
+    return;
+}
+
+// 执行学科删除操作
+function performSubjectDeletion(subject) {
     // 删除学科颜色配置
     delete SUBJECT_COLORS[subject];
     
@@ -2531,17 +2545,19 @@ async function handleTaskFormSubmit(e) {
 function deleteTask(taskId) {
     withPasswordVerification('删除任务需要验证密码', () => {
         const taskToDelete = tasks.find(t => t.id === taskId);
-        if (confirm('确定要删除这个任务吗？')) {
-            tasks = tasks.filter(t => t.id !== taskId);
-            saveData();
-            renderTaskList();
-            updateStatistics();
-            
-            // 添加操作记录
-            if (taskToDelete) {
-                addActivityLog('task_delete', `删除了任务「${taskToDelete.name}」`);
+        showConfirmDialog('确定要删除这个任务吗？', '删除任务').then(confirmed => {
+            if (confirmed) {
+                tasks = tasks.filter(t => t.id !== taskId);
+                saveData();
+                renderTaskList();
+                updateStatistics();
+                
+                // 添加操作记录
+                if (taskToDelete) {
+                    addActivityLog('task_delete', `删除了任务「${taskToDelete.name}」`);
+                }
             }
-        }
+        });
     });
 }
 

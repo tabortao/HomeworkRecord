@@ -69,6 +69,13 @@
                 -ms-overflow-style: none;
                 scrollbar-width: none;
             }
+            @keyframes fadeOut {
+                0% { opacity: 1; }
+                100% { opacity: 0; }
+            }
+            .animate-fadeOut {
+                animation: fadeOut 1.5s ease-in-out forwards;
+            }
         }
     </style>
 </head>
