@@ -46,6 +46,9 @@ let pomodoroTimer = null;
 let pomodoroRemainingTime = 25 * 60; // 默认25分钟
 let currentPomodoroTaskId = null;
 let isPomodoroRunning = false;
+let pomodoroSettings = {
+    fixedPage: false // 是否固定番茄钟页面
+};
 
 // DOM元素引用
 const taskListEl = document.getElementById('taskList');
@@ -212,6 +215,7 @@ function showWishRedemptionRecords() {
 function initApp() {
     // 加载本地存储数据
     loadData();
+    loadPomodoroSettings();
     
     // 初始化学科选择下拉框
     updateSubjectSelect();
@@ -263,6 +267,9 @@ function loadData() {
         currentUser = users[0];
         currentUserId = currentUser.id;
     }
+    
+    // 加载番茄钟设置（必须在设置currentUserId之后）
+    loadPomodoroSettings();
     
     // 加载学科颜色数据（按用户分组）
     const savedSubjectColors = localStorage.getItem(`subjectColors_${currentUserId}`);
@@ -371,6 +378,24 @@ function saveData() {
     localStorage.setItem(`timeManagementTasks_${currentUserId}`, JSON.stringify(tasks));
     localStorage.setItem(`subjectColors_${currentUserId}`, JSON.stringify(SUBJECT_COLORS));
     localStorage.setItem(`activityLogs_${currentUserId}`, JSON.stringify(activityLogs));
+    localStorage.setItem(`pomodoroSettings_${currentUserId}`, JSON.stringify(pomodoroSettings));
+}
+
+// 加载番茄钟设置
+function loadPomodoroSettings() {
+    const savedSettings = localStorage.getItem(`pomodoroSettings_${currentUserId}`);
+    if (savedSettings) {
+        pomodoroSettings = JSON.parse(savedSettings);
+    } else {
+        pomodoroSettings = {
+            fixedPage: false
+        };
+    }
+    
+    // 更新设置界面的复选框状态
+    if (document.getElementById('fixedPomodoroCheckbox')) {
+        document.getElementById('fixedPomodoroCheckbox').checked = pomodoroSettings.fixedPage;
+    }
 }
 
 // 添加操作记录
@@ -1192,15 +1217,6 @@ function setupEventListeners() {
     startPomodoroBtn.addEventListener('click', startPomodoroTimer);
     resetPomodoroBtn.addEventListener('click', resetPomodoroTimer);
     // completeTaskBtn.addEventListener('click', completeTaskFromPomodoro); // 移除已完成按钮事件监听器
-    
-    // 点击番茄钟弹窗外部区域自动缩小为小圆球
-    pomodoroModalEl.addEventListener('click', (e) => {
-        // 只有在点击模态框背景（而非内容区域）时才缩小
-        if (e.target === pomodoroModalEl && isPomodoroRunning) {
-            pomodoroModalEl.classList.add('hidden');
-            pomodoroMiniEl.classList.remove('hidden');
-        }
-    });
     
     // 番茄钟小球点击事件
     pomodoroMiniEl.addEventListener('click', () => {
@@ -4084,6 +4100,11 @@ function openPomodoroModal(taskId) {
     pomodoroModalEl.classList.remove('hidden');
     pomodoroMiniEl.classList.add('hidden');
     
+    // 如果开启了固定页面设置，确保番茄钟保持在最前面
+    if (pomodoroSettings.fixedPage) {
+        pomodoroModalEl.style.zIndex = '9999';
+    }
+    
     // 清除之前的定时器
     if (pomodoroTimer) {
         clearInterval(pomodoroTimer);
@@ -4095,7 +4116,7 @@ function openPomodoroModal(taskId) {
 function closePomodoroModal() {
     pomodoroModalEl.classList.add('hidden');
     
-    // 确保悬浮球隐藏 - 最重要的是在这里也隐藏悬浮球
+    // 确保悬浮球隐藏
     const miniPomodoro = document.getElementById('pomodoroMini');
     if (miniPomodoro) {
         miniPomodoro.classList.add('hidden');
@@ -4113,6 +4134,37 @@ function closePomodoroModal() {
     isPomodoroRunning = false;
 }
 
+// 打开番茄钟设置模态窗口
+function openPomodoroSettingsModal() {
+    const modal = document.getElementById('pomodoroSettingsModal');
+    if (modal) {
+        // 设置复选框初始状态
+        document.getElementById('fixedPomodoroCheckbox').checked = pomodoroSettings.fixedPage;
+        
+        // 显示模态窗口
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+}
+
+// 关闭番茄钟设置模态窗口
+function closePomodoroSettingsModal() {
+    const modal = document.getElementById('pomodoroSettingsModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+}
+
+// 保存番茄钟设置
+function savePomodoroSettings() {
+    if (document.getElementById('fixedPomodoroCheckbox')) {
+        pomodoroSettings.fixedPage = document.getElementById('fixedPomodoroCheckbox').checked;
+        saveData();
+        addActivityLog('settings_update', '更新了番茄钟设置');
+    }
+}
+
 // 开始/暂停番茄钟计时器
 function startPomodoroTimer() {
     if (isPomodoroRunning) {
@@ -4121,6 +4173,11 @@ function startPomodoroTimer() {
         pomodoroTimer = null;
         startPomodoroBtn.textContent = '继续';
         isPomodoroRunning = false;
+        
+        // 暂停时也保持固定页面在最前面
+        if (pomodoroSettings.fixedPage) {
+            pomodoroModalEl.style.zIndex = '9999';
+        }
     } else {
         // 开始计时器
         if (pomodoroRemainingTime <= 0) {
@@ -4136,6 +4193,11 @@ function startPomodoroTimer() {
         const task = tasks.find(t => t.id === currentPomodoroTaskId);
         if (task && !task.pomodoroStartTime) {
             task.pomodoroStartTime = Date.now();
+        }
+        
+        // 如果开启了固定页面设置，确保番茄钟保持在最前面
+        if (pomodoroSettings.fixedPage) {
+            pomodoroModalEl.style.zIndex = '9999';
         }
         
         pomodoroTimer = setInterval(() => {
@@ -4166,13 +4228,18 @@ function startPomodoroTimer() {
         startPomodoroBtn.textContent = '暂停';
         isPomodoroRunning = true;
         
-        // 缩小番茄钟为小球
-        setTimeout(() => {
-            if (isPomodoroRunning) {
-                pomodoroModalEl.classList.add('hidden');
-                pomodoroMiniEl.classList.remove('hidden');
-            }
-        }, 2000); // 2秒后缩小
+        // 如果没有开启固定页面，则2秒后自动缩小为悬浮球
+        if (!pomodoroSettings.fixedPage) {
+            setTimeout(() => {
+                if (isPomodoroRunning) {
+                    pomodoroModalEl.classList.add('hidden');
+                    pomodoroMiniEl.classList.remove('hidden');
+                }
+            }, 2000); // 2秒后缩小
+        } else {
+            // 开启了固定页面，确保悬浮球始终隐藏
+            pomodoroMiniEl.classList.add('hidden');
+        }
     }
 }
 
@@ -4276,6 +4343,7 @@ window.openEditTaskModal = openEditTaskModal;
 window.deleteTask = deleteTask;
 window.openAddTaskModalWithSubject = openAddTaskModalWithSubject;
 window.openPomodoroModal = openPomodoroModal;
+window.openPomodoroSettingsModal = openPomodoroSettingsModal;
 
 // 添加操作记录相关事件监听
 function setupActivityLogListeners() {
@@ -4318,10 +4386,55 @@ function setupActivityLogListeners() {
     }
 }
 
-// 修改增强版初始化函数，添加操作记录监听器
+// 添加番茄钟设置相关事件监听器
+function setupPomodoroSettingsListeners() {
+    const pomodoroSettingsBtn = document.getElementById('pomodoroSettingsBtn');
+    const closePomodoroSettingsBtn = document.getElementById('closePomodoroSettingsBtn');
+    const savePomodoroSettingsBtn = document.getElementById('savePomodoroSettingsBtn');
+    const pomodoroSettingsModal = document.getElementById('pomodoroSettingsModal');
+    
+    // 添加番茄钟模态框点击事件，使其在开启固定页面选项时不缩小
+    pomodoroModalEl.addEventListener('click', (e) => {
+        // 如果开启了固定页面，则不允许点击外部区域缩小，保持全屏显示
+        if (e.target === pomodoroModalEl && !pomodoroSettings.fixedPage) {
+            pomodoroModalEl.classList.add('hidden');
+            pomodoroMiniEl.classList.remove('hidden');
+        } else if (e.target === pomodoroModalEl && pomodoroSettings.fixedPage) {
+            // 开启了固定页面，确保番茄钟保持在最前面
+            pomodoroModalEl.style.zIndex = '9999';
+            // 不执行任何操作，保持全屏显示
+        }
+    });
+    
+    if (pomodoroSettingsBtn) {
+        pomodoroSettingsBtn.addEventListener('click', openPomodoroSettingsModal);
+    }
+    
+    if (closePomodoroSettingsBtn) {
+        closePomodoroSettingsBtn.addEventListener('click', closePomodoroSettingsModal);
+    }
+    
+    if (savePomodoroSettingsBtn) {
+        savePomodoroSettingsBtn.addEventListener('click', () => {
+            savePomodoroSettings();
+            closePomodoroSettingsModal();
+        });
+    }
+    
+    if (pomodoroSettingsModal) {
+        pomodoroSettingsModal.addEventListener('click', (e) => {
+            if (e.target === pomodoroSettingsModal) {
+                closePomodoroSettingsModal();
+            }
+        });
+    }
+}
+
+// 修改增强版初始化函数，添加操作记录监听器和番茄钟设置监听器
 function enhancedInitAppWithLogs() {
     enhancedInitApp();
     setupActivityLogListeners();
+    setupPomodoroSettingsListeners();
 }
 
 // 初始化应用
