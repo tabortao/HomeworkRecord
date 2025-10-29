@@ -4598,6 +4598,238 @@ function isTaskVisible(dateStr, task) {
     return true;
 }
 
+// 任务设置相关变量和函数
+let taskSettings = {
+    autoMigrate: false // 未完成任务自动迁移功能默认关闭
+};
+
+// 生成唯一ID
+function generateId() {
+    return Date.now() + Math.floor(Math.random() * 100000);
+}
+
+// 加载任务设置
+function loadTaskSettings() {
+    try {
+        const savedSettings = localStorage.getItem('taskSettings');
+        if (savedSettings) {
+            taskSettings = { ...taskSettings, ...JSON.parse(savedSettings) };
+        }
+    } catch (error) {
+        console.error('加载任务设置失败:', error);
+        addActivityLog('error', '加载任务设置失败: ' + error.message);
+    }
+}
+
+// 保存任务设置
+function saveTaskSettings() {
+    try {
+        localStorage.setItem('taskSettings', JSON.stringify(taskSettings));
+        addActivityLog('settings_save', '保存了任务设置: ' + (taskSettings.autoMigrate ? '启用' : '禁用') + '未完成任务自动迁移');
+    } catch (error) {
+        console.error('保存任务设置失败:', error);
+        addActivityLog('error', '保存任务设置失败: ' + error.message);
+        showNotification('保存设置失败', 'error');
+    }
+}
+
+// 打开任务设置模态框
+function openTaskSettingsModal() {
+    const taskSettingsModal = document.getElementById('taskSettingsModal');
+    const autoMigrateCheckbox = document.getElementById('autoMigrateCheckbox');
+    
+    if (taskSettingsModal && autoMigrateCheckbox) {
+        // 设置复选框状态
+        autoMigrateCheckbox.checked = taskSettings.autoMigrate;
+        // 显示模态框
+        taskSettingsModal.classList.remove('hidden');
+    }
+}
+
+// 关闭任务设置模态框
+function closeTaskSettingsModal() {
+    const taskSettingsModal = document.getElementById('taskSettingsModal');
+    if (taskSettingsModal) {
+        taskSettingsModal.classList.add('hidden');
+    }
+}
+
+// 处理任务设置保存
+function handleTaskSettingsSave() {
+    const autoMigrateCheckbox = document.getElementById('autoMigrateCheckbox');
+    if (autoMigrateCheckbox) {
+        taskSettings.autoMigrate = autoMigrateCheckbox.checked;
+        saveTaskSettings();
+        closeTaskSettingsModal();
+        showNotification('任务设置已保存', 'success');
+    }
+}
+
+// 自动迁移未完成的历史任务到今天
+function autoMigrateUnfinishedTasks() {
+    console.log('任务自动迁移功能状态:', taskSettings.autoMigrate);
+    if (!taskSettings.autoMigrate) {
+        console.log('任务自动迁移功能已关闭');
+        return;
+    }
+    
+    console.log('开始执行未完成任务自动迁移...');
+    const today = new Date();
+    const todayStr = toISODateLocal(today);
+    let migratedTasksCount = 0;
+    
+    console.log('今天日期:', todayStr, '总任务数:', tasks.length);
+    
+    // 查找所有未完成的历史任务
+    const tasksToMigrate = tasks.filter(task => {
+        // 只迁移未完成的任务
+        if (task.status === 'completed') return false;
+        
+        // 只迁移历史任务（日期早于今天）
+        const taskDate = new Date(task.date);
+        const isBeforeToday = taskDate < today && task.date !== todayStr;
+        if (isBeforeToday) {
+            console.log('找到需要迁移的任务:', task.name, '日期:', task.date, '状态:', task.status);
+        }
+        return isBeforeToday;
+    });
+    
+    console.log('找到需要迁移的任务数量:', tasksToMigrate.length);
+    if (tasksToMigrate.length === 0) {
+        console.log('没有需要迁移的未完成任务');
+        return;
+    }
+    
+    // 执行迁移
+    // 先创建所有新任务
+    var newTasks = [];
+    tasksToMigrate.forEach(function(task) {
+        // 为迁移的任务创建新实例
+        var newTask = {
+            ...task,
+            id: generateId(), // 生成新ID
+            date: todayStr, // 确保日期设置为今天
+            migrated: true,
+            originalDate: task.date,
+            createdAt: Date.now()
+        };
+        
+        // 处理开始日期和结束日期，确保任务在今天可见
+        // 如果有开始日期，将其设置为今天或更早
+        if (newTask.startDate && new Date(newTask.startDate) > new Date(todayStr)) {
+            newTask.startDate = todayStr;
+        }
+        // 如果有结束日期，确保不早于今天
+        if (newTask.endDate && new Date(newTask.endDate) < new Date(todayStr)) {
+            delete newTask.endDate; // 删除结束日期，使其在今天可见
+        }
+        
+        console.log('生成的新任务:', newTask);
+        newTasks.push(newTask);
+        
+        migratedTasksCount++;
+        console.log('任务迁移准备: ' + task.name + ' (从' + task.date + '迁移到' + todayStr + ')');
+    });
+    
+    // 从任务列表中删除原任务，并添加新任务
+    // 使用filter创建一个不包含已迁移任务的新数组
+    tasks = tasks.filter(function(task) {
+        return !tasksToMigrate.some(function(taskToMigrate) {
+            return task.id === taskToMigrate.id;
+        });
+    });
+    
+    // 添加所有新任务
+    tasks = tasks.concat(newTasks);
+    console.log('原任务已从列表中删除，新任务已添加');
+    
+    // 保存数据
+    console.log('迁移后任务总数:', tasks.length);
+    saveData();
+    console.log('数据已保存');
+    
+    // 记录操作日志
+    addActivityLog('task_migrate', `自动迁移了 ${tasksToMigrate.length} 个未完成任务到今天`);
+    
+    // 检查当前选中的日期是否为今天
+    const isTodaySelected = selectedDate === todayStr;
+    
+    // 如果当前选中的不是今天，切换到今天
+    if (!isTodaySelected && migratedTasksCount > 0) {
+        console.log('切换选中日期到今天，以便显示迁移的任务');
+        selectedDate = todayStr;
+        // 切换到今天的日期按钮（如果存在）
+        const todayButton = document.querySelector(`[data-date="${todayStr}"]`);
+        if (todayButton) {
+            todayButton.click();
+        }
+    }
+    
+    // 重新渲染任务列表
+    console.log('重新渲染任务列表...');
+    renderTaskList();
+    console.log('任务列表渲染完成');
+    
+    // 如果有迁移的任务，显示通知
+    if (migratedTasksCount > 0) {
+        showNotification(`已将 ${migratedTasksCount} 个未完成任务迁移到今天`, 'success');
+    }
+    updateStatistics();
+    
+    console.log(`任务自动迁移完成，共迁移 ${tasksToMigrate.length} 个任务`);
+}
+
+// 添加任务设置相关事件监听器
+function setupTaskSettingsListeners() {
+    const taskSettingsBtn = document.getElementById('taskSettingsBtn');
+    const closeTaskSettingsBtn = document.getElementById('closeTaskSettingsBtn');
+    const saveTaskSettingsBtn = document.getElementById('saveTaskSettingsBtn');
+    const taskSettingsModal = document.getElementById('taskSettingsModal');
+    
+    if (taskSettingsBtn) {
+        taskSettingsBtn.addEventListener('click', openTaskSettingsModal);
+    }
+    
+    if (closeTaskSettingsBtn) {
+        closeTaskSettingsBtn.addEventListener('click', closeTaskSettingsModal);
+    }
+    
+    if (saveTaskSettingsBtn) {
+        saveTaskSettingsBtn.addEventListener('click', handleTaskSettingsSave);
+    }
+    
+    if (taskSettingsModal) {
+        taskSettingsModal.addEventListener('click', (e) => {
+            if (e.target === taskSettingsModal) {
+                closeTaskSettingsModal();
+            }
+        });
+    }
+}
+
+// 修改增强版初始化函数，添加任务设置功能
+function enhancedInitAppWithTaskSettings() {
+    enhancedInitAppWithLogs();
+    setupTaskSettingsListeners();
+    
+    // 加载任务设置
+    loadTaskSettings();
+    
+    // 如果启用了自动迁移，执行迁移
+    setTimeout(() => {
+        autoMigrateUnfinishedTasks();
+    }, 500); // 延迟执行，确保数据已完全加载
+}
+
+// 更新初始化应用函数调用
+document.removeEventListener('DOMContentLoaded', enhancedInitAppWithLogs);
+document.addEventListener('DOMContentLoaded', enhancedInitAppWithTaskSettings);
+
+// 导出任务设置相关函数，使其在全局可用
+window.openTaskSettingsModal = openTaskSettingsModal;
+window.closeTaskSettingsModal = closeTaskSettingsModal;
+window.autoMigrateUnfinishedTasks = autoMigrateUnfinishedTasks;
+
 // 通用确认对话框，返回 Promise<boolean>
 function showConfirmDialog(message, title = '确认操作') {
     return new Promise((resolve) => {
