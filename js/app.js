@@ -3372,10 +3372,30 @@ function renderTaskList(filter = 'all') {
                                     ${(() => {
                                         // 计划时长：若未设置或为0，显示默认 10 分钟 的浅色斜体样式
                                         const hasDuration = task.plannedDuration && task.plannedDuration > 0;
-                                        const displayDur = hasDuration ? formatDuration(task.plannedDuration) : formatDuration(10);
-                                        const durExtra = task.actualDuration > 0 ? ` / ${formatDuration(task.actualDuration)}` : '';
+                                        const plannedMinutes = hasDuration ? task.plannedDuration : 10;
+                                        const displayPlannedDur = formatDuration(plannedMinutes);
+                                        
+                                        // 实际时长显示逻辑
+                                        let displayActualDur = '';
+                                        if (task.actualDuration > 0) {
+                                            // 实际时长可能包含秒数，需要精确计算
+                                            const actualSeconds = task.actualDuration * 60;
+                                            // 检查是否需要显示秒数（当不足1分钟或有小数分钟时）
+                                            if (actualSeconds < 60) {
+                                                // 小于1分钟，显示秒数
+                                                displayActualDur = formatDuration(task.actualDuration);
+                                            } else if (actualSeconds % 60 !== 0) {
+                                                // 有小数分钟，显示分钟和秒
+                                                displayActualDur = formatDuration(task.actualDuration);
+                                            } else {
+                                                // 整数分钟，正常显示
+                                                displayActualDur = formatDuration(task.actualDuration);
+                                            }
+                                        }
+                                        
+                                        const durExtra = displayActualDur ? ` / ${displayActualDur}` : '';
                                         const durCls = hasDuration ? 'text-xs text-textSecondary whitespace-nowrap' : 'text-xs italic text-gray-400 whitespace-nowrap';
-                                        return `<span class="${durCls}">${displayDur}${durExtra}</span>`;
+                                        return `<span class="${durCls}" title="任务计划时长/任务实际时长">${displayPlannedDur}${durExtra}</span>`;
                                     })()}
                                     ${(() => {
                                         // 奖励金币：若未设置或为0，显示默认 1 金币 的浅色斜体样式
@@ -3819,11 +3839,32 @@ function setupFrequencyUIListeners() {
     }
 }
 
-// 格式化时长（分钟转小时:分钟）
+// 格式化时长（分钟转更友好的显示格式）
 function formatDuration(minutes) {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    // 支持秒级计算，保留原始秒数用于精确计算
+    const totalSeconds = Math.floor(minutes * 60);
+    const hours = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    if (hours > 0) {
+        // 有小时的情况：1时28分30秒
+        if (seconds > 0) {
+            return `${hours}时${mins}分${seconds}秒`;
+        } else {
+            return `${hours}时${mins}分`;
+        }
+    } else if (seconds > 0) {
+        // 分钟和秒的情况：8分30秒 或 48秒
+        if (mins > 0) {
+            return `${mins}分${seconds}秒`;
+        } else {
+            return `${seconds}秒`;
+        }
+    } else {
+        // 只有分钟的情况：10分
+        return `${mins}分`;
+    }
 }
 
 // 荣誉系统相关代码
@@ -4363,16 +4404,18 @@ function completeTaskFromPomodoro() {
             // 标记任务为已完成
             task.status = 'completed';
             
-            // 计算实际用时
+            // 计算实际用时（保存为分钟，保留小数以支持秒级显示）
             if (isChronometerMode) {
                 // 正计时模式下，使用pomodoroElapsedTime作为实际用时
-                task.actualDuration = Math.max(1, Math.ceil(pomodoroElapsedTime / 60)); // 转换为分钟，至少记录1分钟
+                // 保留小数以支持秒级显示，如48秒 = 0.8分钟
+                task.actualDuration = Math.max(0.1, pomodoroElapsedTime / 60);
             } else {
                 // 倒计时模式下，真实使用时间是计划时间-倒计时显示的时间
                 const totalSeconds = task.plannedDuration * 60;
                 const remainingSeconds = pomodoroRemainingTime || totalSeconds;
                 const elapsedSeconds = totalSeconds - remainingSeconds;
-                task.actualDuration = Math.max(1, Math.ceil(elapsedSeconds / 60)); // 转换为分钟，至少记录1分钟
+                // 保留小数以支持秒级显示
+                task.actualDuration = Math.max(0.1, elapsedSeconds / 60);
             }
             
             // 如果任务之前不是已完成状态，增加金币
@@ -4387,7 +4430,9 @@ function completeTaskFromPomodoro() {
             }
             
             // 添加操作记录
-            addActivityLog('task_complete_pomodoro', `通过番茄钟完成了任务「${task.name}」，耗时${task.actualDuration}分钟`);
+            // 格式化显示实际时长，避免显示小数分钟
+            const formattedDuration = formatDuration(task.actualDuration);
+            addActivityLog('task_complete_pomodoro', `通过番茄钟完成了任务「${task.name}」，耗时${formattedDuration}`);
             
             // 保存数据
             saveData();
