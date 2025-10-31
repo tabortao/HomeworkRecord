@@ -793,7 +793,12 @@
             </div>
             <div class="text-center py-4 max-h-[60vh] overflow-y-auto">
                 <h4 id="pomodoroTaskName" class="text-lg font-medium mb-2"></h4>
-                <div id="pomodoroTimer" class="text-5xl font-bold my-6">00:00</div>
+                <div class="flex items-center justify-center my-6">
+                    <div id="pomodoroTimer" class="text-5xl font-bold">00:00</div>
+                    <button id="chronometerToggleBtn" class="ml-3 text-gray-400 hover:text-primary transition-colors" title="切换模式">
+                    <i class="fa fa-clock-o text-2xl"></i>
+                </button>
+                </div>
                 <div id="pomodoroDuration" class="text-sm text-textSecondary mb-6">计划时长：0分钟</div>
             </div>
             <div class="flex space-x-3">
@@ -802,6 +807,9 @@
                 </button>
                 <button id="resetPomodoroBtn" class="flex-1 px-4 py-2.5 bg-gray-100 text-textPrimary rounded-lg font-medium hover:bg-gray-200 transition-colors">
                     重置
+                </button>
+                <button id="completePomodoroBtn" class="flex-1 px-4 py-2.5 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors shadow-button">
+                    已完成
                 </button>
             </div>
         </div>

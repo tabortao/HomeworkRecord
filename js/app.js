@@ -44,8 +44,10 @@ const SUBJECT_COLORS = {
 // 番茄钟相关变量
 let pomodoroTimer = null;
 let pomodoroRemainingTime = 25 * 60; // 默认25分钟
+let pomodoroElapsedTime = 0; // 正计时已用时间
 let currentPomodoroTaskId = null;
 let isPomodoroRunning = false;
+let isChronometerMode = false; // 是否为正计时模式
 let pomodoroSettings = {
     fixedPage: false // 是否固定番茄钟页面
 };
@@ -1216,7 +1218,17 @@ function setupEventListeners() {
     closePomodoroBtn.addEventListener('click', closePomodoroModal);
     startPomodoroBtn.addEventListener('click', startPomodoroTimer);
     resetPomodoroBtn.addEventListener('click', resetPomodoroTimer);
-    // completeTaskBtn.addEventListener('click', completeTaskFromPomodoro); // 移除已完成按钮事件监听器
+    // 正计时切换按钮事件监听器
+    const chronometerToggleBtn = document.getElementById('chronometerToggleBtn');
+    if (chronometerToggleBtn) {
+        chronometerToggleBtn.addEventListener('click', toggleChronometerMode);
+    }
+    
+    // 已完成按钮事件监听器
+    const completePomodoroBtn = document.getElementById('completePomodoroBtn');
+    if (completePomodoroBtn) {
+        completePomodoroBtn.addEventListener('click', completeTaskFromPomodoro);
+    }
     
     // 番茄钟小球点击事件
     pomodoroMiniEl.addEventListener('click', () => {
@@ -4086,7 +4098,9 @@ function openPomodoroModal(taskId) {
     
     currentPomodoroTaskId = taskId;
     pomodoroRemainingTime = task.plannedDuration * 60; // 转换为秒
+    pomodoroElapsedTime = 0; // 重置正计时已用时间
     isPomodoroRunning = false;
+    isChronometerMode = false; // 默认为倒计时模式
     
     // 更新番茄钟UI
     pomodoroTaskNameEl.textContent = task.name;
@@ -4095,6 +4109,13 @@ function openPomodoroModal(taskId) {
     
     // 重置开始按钮文本
     startPomodoroBtn.textContent = '开始';
+    
+    // 重置正计时按钮状态
+    const chronometerToggleBtn = document.getElementById('chronometerToggleBtn');
+    if (chronometerToggleBtn) {
+        chronometerToggleBtn.className = 'ml-3 text-gray-400 hover:text-primary transition-colors';
+        chronometerToggleBtn.title = '切换到正计时';
+    }
     
     // 显示番茄钟模态框
     pomodoroModalEl.classList.remove('hidden');
@@ -4180,8 +4201,8 @@ function startPomodoroTimer() {
         }
     } else {
         // 开始计时器
-        if (pomodoroRemainingTime <= 0) {
-            // 如果时间已用完，重置
+        if (!isChronometerMode && pomodoroRemainingTime <= 0) {
+            // 如果是倒计时模式且时间已用完，重置
             const task = tasks.find(t => t.id === currentPomodoroTaskId);
             if (task) {
                 pomodoroRemainingTime = task.plannedDuration * 60;
@@ -4201,27 +4222,34 @@ function startPomodoroTimer() {
         }
         
         pomodoroTimer = setInterval(() => {
-            pomodoroRemainingTime--;
-            updatePomodoroTimerDisplay();
-            
-            if (pomodoroRemainingTime <= 0) {
-                // 时间到，完成任务
-                clearInterval(pomodoroTimer);
-                pomodoroTimer = null;
-                isPomodoroRunning = false;
-                startPomodoroBtn.textContent = '开始';
+            if (isChronometerMode) {
+                // 正计时模式
+                pomodoroElapsedTime++;
+                updatePomodoroTimerDisplay();
+            } else {
+                // 倒计时模式
+                pomodoroRemainingTime--;
+                updatePomodoroTimerDisplay();
                 
-                // 立即隐藏悬浮球
-                const miniPomodoro = document.getElementById('pomodoroMini');
-                if (miniPomodoro) {
-                    miniPomodoro.classList.add('hidden');
+                if (pomodoroRemainingTime <= 0) {
+                    // 时间到，完成任务
+                    clearInterval(pomodoroTimer);
+                    pomodoroTimer = null;
+                    isPomodoroRunning = false;
+                    startPomodoroBtn.textContent = '开始';
+                    
+                    // 立即隐藏悬浮球
+                    const miniPomodoro = document.getElementById('pomodoroMini');
+                    if (miniPomodoro) {
+                        miniPomodoro.classList.add('hidden');
+                    }
+                    if (pomodoroMiniEl) {
+                        pomodoroMiniEl.classList.add('hidden');
+                    }
+                    
+                    // 自动完成任务
+                    completeTaskFromPomodoro();
                 }
-                if (pomodoroMiniEl) {
-                    pomodoroMiniEl.classList.add('hidden');
-                }
-                
-                // 自动完成任务
-                completeTaskFromPomodoro();
             }
         }, 1000);
         
@@ -4247,8 +4275,22 @@ function startPomodoroTimer() {
 function resetPomodoroTimer() {
     const task = tasks.find(t => t.id === currentPomodoroTaskId);
     if (task) {
+        // 重置时间
         pomodoroRemainingTime = task.plannedDuration * 60;
+        pomodoroElapsedTime = 0; // 重置正计时已用时间
+        
+        // 重置模式为倒计时
+        isChronometerMode = false;
+        
+        // 更新UI
         updatePomodoroTimerDisplay();
+        
+        // 重置正计时按钮状态
+        const chronometerToggleBtn = document.getElementById('chronometerToggleBtn');
+        if (chronometerToggleBtn) {
+            chronometerToggleBtn.className = 'ml-3 text-gray-400 hover:text-primary transition-colors';
+            chronometerToggleBtn.title = '切换到正计时';
+        }
         
         // 停止计时器
         if (pomodoroTimer) {
@@ -4266,28 +4308,72 @@ function resetPomodoroTimer() {
 }
 
 // 从番茄钟完成任务
+// 函数已在后面重新定义
+
+// 切换正计时模式
+function toggleChronometerMode() {
+    // 如果计时器正在运行，不允许切换模式
+    if (isPomodoroRunning) {
+        showNotification('请先暂停计时器再切换模式', 'warning');
+        return;
+    }
+    
+    // 切换模式 - 允许切换到正计时
+    isChronometerMode = !isChronometerMode;
+    
+    // 更新按钮状态
+    const chronometerToggleBtn = document.getElementById('chronometerToggleBtn');
+    if (chronometerToggleBtn) {
+        if (isChronometerMode) {
+            chronometerToggleBtn.className = 'ml-3 text-primary hover:text-primary/80 transition-colors';
+            chronometerToggleBtn.title = '切换模式';
+            // 重置正计时时间
+            pomodoroElapsedTime = 0;
+        } else {
+            chronometerToggleBtn.className = 'ml-3 text-gray-400 hover:text-primary transition-colors';
+            chronometerToggleBtn.title = '切换模式';
+            // 重置倒计时时间
+            const task = tasks.find(t => t.id === currentPomodoroTaskId);
+            if (task) {
+                pomodoroRemainingTime = task.plannedDuration * 60;
+            }
+        }
+    }
+    
+    // 更新时间显示
+    updatePomodoroTimerDisplay();
+}
+
+// 确保在completeTaskFromPomodoro函数中，计时结束时停止计时器
 function completeTaskFromPomodoro() {
     if (currentPomodoroTaskId) {
         const task = tasks.find(t => t.id === currentPomodoroTaskId);
         if (task) {
+            // 停止计时器（如果正在运行）
+            if (pomodoroTimer) {
+                clearInterval(pomodoroTimer);
+                pomodoroTimer = null;
+                isPomodoroRunning = false;
+                startPomodoroBtn.textContent = '开始';
+            }
+            
             // 如果任务之前不是已完成状态，才增加金币
             const wasCompleted = task.status === 'completed';
             
             // 标记任务为已完成
             task.status = 'completed';
             
-            // 计算实际用时（番茄钟实际运行的时间）
-            // 记录番茄钟开始时间（如果还没有记录）
-            if (!task.pomodoroStartTime) {
-                task.pomodoroStartTime = Date.now();
+            // 计算实际用时
+            if (isChronometerMode) {
+                // 正计时模式下，使用pomodoroElapsedTime作为实际用时
+                task.actualDuration = Math.max(1, Math.ceil(pomodoroElapsedTime / 60)); // 转换为分钟，至少记录1分钟
+            } else {
+                // 倒计时模式下，真实使用时间是计划时间-倒计时显示的时间
+                const totalSeconds = task.plannedDuration * 60;
+                const remainingSeconds = pomodoroRemainingTime || totalSeconds;
+                const elapsedSeconds = totalSeconds - remainingSeconds;
+                task.actualDuration = Math.max(1, Math.ceil(elapsedSeconds / 60)); // 转换为分钟，至少记录1分钟
             }
-            
-            // 计算实际用时（从开始到现在的时间）
-            const elapsedSeconds = Math.floor((Date.now() - task.pomodoroStartTime) / 1000);
-            task.actualDuration = Math.max(1, Math.ceil(elapsedSeconds / 60)); // 转换为分钟，至少记录1分钟
-            
-            // 清除开始时间标记
-            delete task.pomodoroStartTime;
             
             // 如果任务之前不是已完成状态，增加金币
             if (!wasCompleted) {
@@ -4329,9 +4415,19 @@ function completeTaskFromPomodoro() {
 
 // 更新番茄钟显示
 function updatePomodoroTimerDisplay() {
-    const minutes = Math.floor(pomodoroRemainingTime / 60);
-    const seconds = pomodoroRemainingTime % 60;
-    const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    let minutes, seconds, formattedTime;
+    
+    if (isChronometerMode) {
+        // 正计时模式
+        minutes = Math.floor(pomodoroElapsedTime / 60);
+        seconds = pomodoroElapsedTime % 60;
+        formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    } else {
+        // 倒计时模式
+        minutes = Math.floor(pomodoroRemainingTime / 60);
+        seconds = pomodoroRemainingTime % 60;
+        formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
     
     pomodoroTimerEl.textContent = formattedTime;
     pomodoroMiniTimerEl.textContent = formattedTime;
